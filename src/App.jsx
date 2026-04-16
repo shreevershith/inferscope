@@ -2,6 +2,7 @@ import { Tab } from '@headlessui/react'
 import useDashboardStore from './store/dashboardStore'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import AdvisorPanel from './components/advisor/AdvisorPanel'
+import HeroBanner from './components/HeroBanner'
 import ModelArena from './tabs/ModelArena'
 import CostCalculator from './tabs/CostCalculator'
 import InfraExplorer from './tabs/InfraExplorer'
@@ -16,17 +17,21 @@ export default function App() {
   const activeTab = useDashboardStore(s => s.activeTab)
   const setActiveTab = useDashboardStore(s => s.setActiveTab)
   const toggleAdvisorPanel = useDashboardStore(s => s.toggleAdvisorPanel)
+  const isPanelOpen = useDashboardStore(s => s.isPanelOpen)
   const theme = useDashboardStore(s => s.theme)
   const setTheme = useDashboardStore(s => s.setTheme)
 
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="w-full sticky top-0 bg-dash-bg/90 dark:bg-dash-bg/90 bg-white/90 backdrop-blur-xl z-30 border-b border-slate-200 dark:border-slate-800">
+      <header className="w-full sticky top-0 dark:bg-dash-bg/90 bg-white/90 backdrop-blur-xl z-30 border-b dark:border-slate-800 border-slate-200">
         <div className="flex justify-between items-center px-8 h-16 max-w-[1920px] mx-auto">
           {/* Brand */}
-          <div className="text-2xl font-black tracking-tighter text-primary dark:text-primary text-amber-600">
-            InferScope
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>insights</span>
+            <span className="text-2xl font-black tracking-tighter text-primary dark:text-primary text-amber-600 brand-glow">
+              InferScope
+            </span>
           </div>
 
           {/* Tab Navigation */}
@@ -88,6 +93,9 @@ export default function App() {
         </div>
       </header>
 
+      {/* Hero Banner */}
+      <HeroBanner />
+
       {/* Main Content */}
       <main className="max-w-[1920px] mx-auto px-4 md:px-8 py-8">
         <ErrorBoundary>
@@ -108,8 +116,8 @@ export default function App() {
         <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
       </button>
 
-      {/* AI Advisor Panel */}
-      <AdvisorPanel />
+      {/* AI Advisor Panel — only mount when open to avoid 8 idle subscriptions */}
+      {isPanelOpen && <AdvisorPanel />}
     </div>
   )
 }

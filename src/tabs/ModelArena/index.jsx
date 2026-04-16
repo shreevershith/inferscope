@@ -123,7 +123,7 @@ export default function ModelArena() {
               </InfoTooltip>
               <h2 className="text-3xl font-black text-white tracking-tighter">{models.length}</h2>
             </div>
-            <span className="material-symbols-outlined text-primary/20 text-4xl">database</span>
+            <span className="material-symbols-outlined text-primary/50 text-4xl">database</span>
           </div>
           <div className="bg-dash-card p-5 rounded-lg border-l-4 border-slate-600 flex items-center justify-between shadow-lg shadow-black/20">
             <div>
@@ -132,7 +132,7 @@ export default function ModelArena() {
               </InfoTooltip>
               <h2 className="text-3xl font-black text-white tracking-tighter">{models[0]?.arenaElo || '—'}</h2>
             </div>
-            <span className="material-symbols-outlined text-slate-600/20 text-4xl">leaderboard</span>
+            <span className="material-symbols-outlined text-slate-400/50 text-4xl">leaderboard</span>
           </div>
           <div className="bg-dash-card p-5 rounded-lg border-l-4 border-emerald-600/50 flex items-center justify-between shadow-lg shadow-black/20">
             <div>
@@ -143,7 +143,7 @@ export default function ModelArena() {
                 {[...modelsWithValue].sort((a, b) => b.valueScore - a.valueScore)[0]?.name || '—'}
               </h2>
             </div>
-            <span className="material-symbols-outlined text-emerald-600/20 text-4xl">thumb_up</span>
+            <span className="material-symbols-outlined text-emerald-400/50 text-4xl">thumb_up</span>
           </div>
         </div>
 

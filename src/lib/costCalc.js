@@ -1,21 +1,40 @@
 import { SCENARIO_MULTIPLIERS } from '../constants/taskCategories'
 
 /**
- * Calculate monthly inference costs
+ * Coerce any value to a finite non-negative number.
+ * Acts as a NaN firewall — invalid inputs become 0 instead of NaN propagating to the UI.
  */
-export function calculateCosts(inputs) {
-  const {
-    inputTokens,
-    outputTokens,
-    requestsPerDay,
-    cachingHitRate,
-    scenario,
-    inputPricePerMToken,
-    outputPricePerMToken,
-    cachedInputPrice,
-  } = inputs
+function safeNum(value, fallback = 0) {
+  const n = typeof value === 'number' ? value : parseFloat(value)
+  if (!Number.isFinite(n) || n < 0) return fallback
+  return n
+}
 
-  const multiplier = SCENARIO_MULTIPLIERS[scenario]?.requestMultiplier || 1.0
+/**
+ * Clamp a number into [min, max].
+ */
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+/**
+ * Calculate monthly inference costs.
+ * All inputs are validated and coerced — never returns NaN.
+ */
+export function calculateCosts(inputs = {}) {
+  const inputTokens = safeNum(inputs.inputTokens)
+  const outputTokens = safeNum(inputs.outputTokens)
+  const requestsPerDay = safeNum(inputs.requestsPerDay)
+  const cachingHitRate = clamp(safeNum(inputs.cachingHitRate), 0, 100)
+  const inputPricePerMToken = safeNum(inputs.inputPricePerMToken)
+  const outputPricePerMToken = safeNum(inputs.outputPricePerMToken)
+  // Cached price defaults to 10% of input price if not provided
+  const cachedInputPrice = inputs.cachedInputPrice != null
+    ? safeNum(inputs.cachedInputPrice)
+    : inputPricePerMToken * 0.1
+
+  const scenarioCfg = SCENARIO_MULTIPLIERS[inputs.scenario]
+  const multiplier = scenarioCfg ? safeNum(scenarioCfg.requestMultiplier, 1.0) : 1.0
   const effectiveRequestsPerDay = requestsPerDay * multiplier
   const requestsPerMonth = effectiveRequestsPerDay * 30
 
@@ -40,7 +59,7 @@ export function calculateCosts(inputs) {
 
   // Savings from caching
   const costWithoutCaching = (totalInputTokens / 1_000_000) * inputPricePerMToken + outputCost
-  const cacheSavings = costWithoutCaching - monthlyCost
+  const cacheSavings = Math.max(0, costWithoutCaching - monthlyCost)
 
   // Blended cost per 1M tokens
   const totalTokens = totalInputTokens + totalOutputTokens
@@ -69,7 +88,7 @@ export function calculateCosts(inputs) {
 /**
  * Generate cost-vs-volume curve data
  */
-export function generateVolumeCurve(inputs, points = 8) {
+export function generateVolumeCurve(inputs) {
   const volumes = [100, 500, 1000, 5000, 10000, 25000, 50000, 100000]
   return volumes.map(rpd => {
     const costs = calculateCosts({ ...inputs, requestsPerDay: rpd, scenario: 'base' })
@@ -88,7 +107,7 @@ export function generateScenarioComparison(inputs) {
   return ['low', 'base', 'high'].map(scenario => {
     const costs = calculateCosts({ ...inputs, scenario })
     return {
-      scenario: SCENARIO_MULTIPLIERS[scenario].label,
+      scenario: SCENARIO_MULTIPLIERS[scenario]?.label || scenario,
       monthlyCost: costs.monthlyCost,
       annualCost: costs.annualCost,
       requestsPerDay: costs.volume.effectiveRequestsPerDay,

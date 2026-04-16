@@ -4,11 +4,13 @@ AI Model Intelligence Dashboard — compare LLMs, estimate inference costs, and 
 
 ## What This Dashboard Does
 
-InferScope answers two questions every engineer building with LLMs faces:
+InferScope answers three questions every engineer building with LLMs faces:
 
 1. **"Which model should I use?"** — The Model Arena tab aggregates benchmark scores, ELO ratings, pricing, and speed data from multiple public sources into a single sortable, filterable leaderboard.
 
 2. **"What will it cost in production?"** — The Cost Calculator takes your model choice, token volumes, request rate, and caching strategy, then projects monthly and annual costs with interactive charts.
+
+3. **"Where should I deploy?"** — The Infra Explorer compares 15 API inference providers and 10 self-hosted GPU configurations with side-by-side comparison tools.
 
 The AI Advisor (powered by Groq) ties it all together — it sees your selected model, your calculator scenario, and live pricing data, so it gives recommendations grounded in your actual dashboard state.
 
@@ -42,6 +44,8 @@ A live leaderboard ranking AI models by quality and cost-effectiveness.
 **Sidebar panels:**
 - **Arena Insight** — Bar chart showing the top 4 models by ELO, with a text summary
 - **Optimization Tip** — Auto-generated suggestion comparing the #1 model's price to a cheaper alternative, showing potential savings percentage: `savings = ((top_price - cheap_price) / top_price) * 100`
+
+**Model Comparison:** Select up to 3 models via checkboxes → a slide-up drawer shows a radar chart (Quality, Value, Speed, Context, Affordability) and a detailed metrics table with best-value highlights.
 
 **Cross-tab flow:** Click "CALCULATE" on any row → the model's pricing auto-fills into the Cost Calculator tab.
 
@@ -96,6 +100,8 @@ Cache Savings           = costWithoutCaching - monthlyCost
 - **Monthly Cost Distribution** — Stacked bar showing the split between input token cost, output token cost, and caching savings
 - **Cost vs Volume** — Line chart plotting monthly cost at 8 request volumes (100, 500, 1K, 5K, 10K, 25K, 50K, 100K requests/day) to visualize how costs scale
 
+**Real-time timestamps** — Shows when pricing data was last refreshed (e.g., "2m ago"), with a live indicator.
+
 **Scenario multipliers:**
 
 | Scenario | Request Multiplier | Use Case |
@@ -108,9 +114,9 @@ Cache Savings           = costWithoutCaching - monthlyCost
 
 ### Tab 3: Infra Explorer
 
-Compare API inference providers and self-hosted GPU options.
+Compare API inference providers and self-hosted GPU options side-by-side.
 
-**API Provider Cards** — 6 providers with key differentiators:
+**API Provider Cards** — 15 providers with key differentiators:
 
 | Provider | Models | Price Range | Speed Tier | Differentiator |
 |----------|--------|-------------|------------|----------------|
@@ -120,16 +126,32 @@ Compare API inference providers and self-hosted GPU options.
 | Replicate | 350+ | $0.05 - $3.50/M | Fast | Simple API for open models |
 | OpenRouter | 300+ | $0 - $60.00/M | Varies | Unified API, best-price routing |
 | Fireworks AI | 50 | $0.10 - $3.00/M | Fast | Optimized production inference |
+| Anthropic | 8 | $0.25 - $15.00/M | Fast | Claude models, safety & reasoning |
+| OpenAI | 15 | $0.15 - $60.00/M | Fast | GPT and o-series models |
+| Google Vertex AI | 12 | $0.10 - $10.00/M | Fast | Gemini multimodal on GCP |
+| Azure OpenAI | 12 | $0.50 - $60.00/M | Standard | Enterprise OpenAI on Azure |
+| Hugging Face | 500+ | $0 - $5.00/M | Varies | Largest open-source model hub |
+| DeepInfra | 80 | $0.04 - $2.00/M | Fast | Low-cost optimized inference |
+| Perplexity | 5 | $0.20 - $3.00/M | Fast | Search-augmented models |
+| Mistral AI | 6 | $0.10 - $4.00/M | Ultra-fast | European frontier models |
+| Cohere | 8 | $0.15 - $3.00/M | Fast | RAG-optimized enterprise NLP |
 
-**GPU Pricing Table** — For self-hosted model deployment:
+**GPU Pricing Table** — 10 self-hosted GPU configurations for model deployment:
 
-| GPU | VRAM | Provider | $/hr | Throughput |
-|-----|------|----------|------|------------|
-| H100 80GB | 80GB | Lambda | $2.49 | ~800 tok/s |
-| H100 80GB | 80GB | RunPod | $3.29 | ~800 tok/s |
-| A100 80GB | 80GB | Lambda | $1.29 | ~400 tok/s |
-| A100 80GB | 80GB | AWS | $3.06 | ~400 tok/s |
-| L40S 48GB | 48GB | RunPod | $0.74 | ~250 tok/s |
+| GPU | VRAM | Provider | $/hr | Throughput | TFLOPS |
+|-----|------|----------|------|------------|--------|
+| H200 141GB | 141GB | CoreWeave | $4.25 | ~1200 tok/s | 1,979 |
+| H100 80GB | 80GB | Lambda | $2.49 | ~800 tok/s | 989 |
+| H100 80GB | 80GB | RunPod | $3.29 | ~800 tok/s | 989 |
+| MI300X 192GB | 192GB | Lambda | $3.99 | ~900 tok/s | 1,307 |
+| A100 80GB | 80GB | Lambda | $1.29 | ~400 tok/s | 312 |
+| A100 80GB | 80GB | AWS | $3.06 | ~400 tok/s | 312 |
+| L40S 48GB | 48GB | RunPod | $0.74 | ~250 tok/s | 366 |
+| A10G 24GB | 24GB | AWS | $1.00 | ~150 tok/s | 125 |
+| RTX 4090 24GB | 24GB | Vast.ai | $0.44 | ~180 tok/s | 330 |
+| L4 24GB | 24GB | GCP | $0.60 | ~120 tok/s | 121 |
+
+**GPU Comparison:** Select 2-3 GPUs via checkboxes → click "Compare Selected" → a slide-up drawer shows a radar chart (VRAM, Affordability, Throughput, Efficiency, Compute) and a detailed metrics table with best-value highlights (efficiency = tok/s per dollar, VRAM per dollar).
 
 **Cross-tab flow:** Click "ESTIMATE COST" on any provider → navigates to Cost Calculator with that provider selected.
 
@@ -155,6 +177,14 @@ A Groq-powered (Llama 3.3 70B) conversational assistant available from any tab v
 - Scoped to AI/ML model selection and infrastructure topics
 - Input sanitized and capped at 500 characters
 - API key never exposed to the browser (proxied through Vercel serverless / Vite dev middleware)
+
+---
+
+### Hero Banner
+
+A persistent banner below the header showing:
+- **AI Model Intelligence** headline with tagline
+- **Live stat chips** — Models Tracked, Providers monitored, Last Refreshed timestamp (real, from data fetch)
 
 ---
 
@@ -260,7 +290,7 @@ Designed in Google Stitch. The "Digital Observatory" aesthetic.
 | Muted text | `slate-400` | Secondary labels, metadata |
 | Error | `#ff7351` | Error states |
 
-**Rules:** No 1px borders (use background color shifts). Glassmorphism for floating elements. Inter font throughout. Dark mode is default.
+**Rules:** No 1px borders (use background color shifts). Glassmorphism for floating elements. Inter font throughout. Dark mode is default. Brand glow animation on logo. Live pulse indicators for data freshness.
 
 ---
 
@@ -321,33 +351,41 @@ inferscope/
 ├── api/
 │   └── ai-chat.js              # Vercel serverless — Groq proxy with input sanitization
 ├── src/
-│   ├── App.jsx                  # 3-tab shell + theme toggle + AI Advisor FAB
+│   ├── App.jsx                  # 3-tab shell + hero banner + theme toggle + AI Advisor FAB
 │   ├── store/dashboardStore.js  # Zustand (5 slices, cross-tab actions)
 │   ├── constants/
 │   │   ├── modelDefaults.js     # 8 seed models with full metadata
-│   │   ├── providerMetadata.js  # 6 API providers + 5 GPU pricing entries
+│   │   ├── providerMetadata.js  # 15 API providers + 10 GPU pricing entries
 │   │   └── taskCategories.js    # Task filters + scenario multipliers
 │   ├── lib/
 │   │   ├── costCalc.js          # Pure functions: calculateCosts, volumeCurve, scenarios
 │   │   ├── openRouterClient.js  # OpenRouter /api/v1/models fetch + normalize
 │   │   ├── arenaClient.js       # LMSYS Arena leaderboard fetch + normalize
 │   │   ├── dataNormalizer.js    # Merge multi-source data into unified Model shape
-│   │   └── aiClient.js          # POST /api/ai-chat wrapper with sanitization
+│   │   ├── aiClient.js          # POST /api/ai-chat wrapper with sanitization
+│   │   └── timeUtils.js         # Relative timestamp formatting (e.g., "2m ago")
 │   ├── hooks/
 │   │   ├── useModelData.js      # SWR hook — fetches + merges all model data
 │   │   └── useCostCalculator.js # useMemo — reactive cost computation
 │   ├── components/
+│   │   ├── HeroBanner.jsx       # Live stats banner (models tracked, providers, last refresh)
 │   │   ├── ui/
 │   │   │   ├── MetricCard.jsx   # KPI card with optional info tooltip
 │   │   │   ├── InfoTooltip.jsx  # Hover/click educational tooltip
 │   │   │   ├── LoadingSpinner.jsx
+│   │   │   ├── SkeletonCard.jsx
 │   │   │   └── ErrorBoundary.jsx
 │   │   └── advisor/
 │   │       └── AdvisorPanel.jsx # Slide-out AI chat with context badges
 │   └── tabs/
-│       ├── ModelArena/index.jsx     # Leaderboard, filters, Arena Insight sidebar
+│       ├── ModelArena/
+│       │   ├── index.jsx            # Leaderboard, filters, Arena Insight sidebar
+│       │   ├── ArenaInsight.jsx     # Interactive bar chart sidebar
+│       │   └── ModelCompareDrawer.jsx # Model comparison drawer (radar + table)
 │       ├── CostCalculator/index.jsx # Inputs, metric cards, cost charts
-│       └── InfraExplorer/index.jsx  # Provider cards, GPU pricing table
+│       └── InfraExplorer/
+│           ├── index.jsx            # Provider cards, GPU pricing table
+│           └── GpuCompareDrawer.jsx # GPU comparison drawer (radar + table)
 ├── DESIGN.md                    # Precision Slate design system (from Stitch)
 ├── CLAUDE.md                    # Claude Code instructions
 ├── tailwind.config.js           # Design tokens mapped to Tailwind

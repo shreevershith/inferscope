@@ -11,15 +11,28 @@ const fetchAllModelData = async () => {
     fetchArenaLeaderboard(),
   ])
 
+  const sourceErrors = []
+  if (openRouterRaw.status === 'rejected') {
+    console.error('OpenRouter fetch failed:', openRouterRaw.reason?.message)
+    sourceErrors.push('OpenRouter')
+  }
+  if (arenaRaw.status === 'rejected') {
+    console.error('Arena fetch failed:', arenaRaw.reason?.message)
+    sourceErrors.push('Arena')
+  }
+
+  // Per-item normalization with filter — drops malformed entries instead of failing entire batch
   const openRouterModels = openRouterRaw.status === 'fulfilled'
-    ? openRouterRaw.value.slice(0, 100).map(normalizeOpenRouterModel)
+    ? openRouterRaw.value.slice(0, 100).map(normalizeOpenRouterModel).filter(Boolean)
     : []
 
   const arenaModels = arenaRaw.status === 'fulfilled'
-    ? arenaRaw.value.slice(0, 50).map(normalizeArenaModel)
+    ? arenaRaw.value.slice(0, 50).map(normalizeArenaModel).filter(Boolean)
     : []
 
-  return mergeModelData({ arenaModels, openRouterModels })
+  const merged = mergeModelData({ arenaModels, openRouterModels })
+
+  return { models: merged, sourceErrors }
 }
 
 export function useModelData() {
@@ -31,7 +44,7 @@ export function useModelData() {
     revalidateOnFocus: false,
     refreshInterval: 60 * 60 * 1000, // 1 hour
     dedupingInterval: 15 * 60 * 1000, // 15 min
-    fallbackData: modelList.length > 0 ? modelList : undefined,
+    fallbackData: modelList.length > 0 ? { models: modelList, sourceErrors: [] } : undefined,
   })
 
   useEffect(() => {
@@ -39,14 +52,22 @@ export function useModelData() {
   }, [isLoading, setModelsLoading])
 
   useEffect(() => {
-    if (data && data.length > 0) {
-      setModelList(data)
+    if (data?.models && data.models.length > 0) {
+      setModelList(data.models)
     }
   }, [data, setModelList])
 
+  // Surface partial-failure state: data loaded, but one or more sources failed
+  const sourceErrors = data?.sourceErrors || []
+  const hasPartialFailure = sourceErrors.length > 0
+  const hasTotalFailure = !!error || (data?.models?.length === 0 && hasPartialFailure)
+
   return {
-    models: data || modelList,
+    models: data?.models || modelList,
     isLoading,
     error,
+    sourceErrors,
+    hasPartialFailure,
+    hasTotalFailure,
   }
 }

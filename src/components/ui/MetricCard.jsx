@@ -24,11 +24,11 @@ export default function MetricCard({ label, value, sublabel, icon, accent = fals
           {sublabel && <p className="text-xs text-slate-500 mt-1">{sublabel}</p>}
         </div>
         {icon && (
-          <span className="material-symbols-outlined text-primary/20 text-3xl">{icon}</span>
+          <span className="material-symbols-outlined text-primary/50 text-3xl">{icon}</span>
         )}
       </div>
       {showTip && tooltip && (
-        <div className="absolute bottom-full left-4 right-4 mb-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300 shadow-xl z-50 leading-relaxed">
+        <div className="absolute top-full left-4 right-4 mt-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300 shadow-xl z-50 leading-relaxed">
           {tooltip}
         </div>
       )}

@@ -1,34 +1,77 @@
 const OPENROUTER_API = 'https://openrouter.ai/api/v1/models'
+const FETCH_TIMEOUT_MS = 10_000
 
 export async function fetchOpenRouterModels() {
-  const res = await fetch(OPENROUTER_API)
-  if (!res.ok) throw new Error(`OpenRouter API error: ${res.status}`)
-  const data = await res.json()
-  return data.data || []
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+
+  try {
+    const res = await fetch(OPENROUTER_API, { signal: controller.signal })
+    if (!res.ok) {
+      const error = new Error(`OpenRouter API error: ${res.status}`)
+      error.status = res.status
+      error.source = 'openrouter'
+      throw error
+    }
+    const data = await res.json().catch(() => null)
+    if (!data || !Array.isArray(data.data)) {
+      const error = new Error('OpenRouter API returned unexpected payload')
+      error.source = 'openrouter'
+      throw error
+    }
+    return data.data
+  } catch (err) {
+    // Re-throw with source for upstream classification
+    if (!err.source) err.source = 'openrouter'
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+// Sanitize potentially user-influenced strings before they reach the UI
+function safeStr(value, maxLen = 200) {
+  if (value === null || value === undefined) return ''
+  return String(value).replace(/[\x00-\x1F\x7F]/g, '').slice(0, maxLen)
+}
+
+function safeFloat(value) {
+  const n = parseFloat(value)
+  return Number.isFinite(n) ? n : 0
 }
 
 export function normalizeOpenRouterModel(model) {
-  const pricing = model.pricing || {}
-  const inputPrice = parseFloat(pricing.prompt || '0') * 1_000_000
-  const outputPrice = parseFloat(pricing.completion || '0') * 1_000_000
+  try {
+    const pricing = model.pricing || {}
+    const inputPrice = safeFloat(pricing.prompt) * 1_000_000
+    const outputPrice = safeFloat(pricing.completion) * 1_000_000
+    const provider = extractProvider(model.id)
 
-  return {
-    id: model.id,
-    name: model.name || model.id,
-    provider: extractProvider(model.id),
-    providerIcon: getProviderIcon(extractProvider(model.id)),
-    inputPricePerMToken: Math.round(inputPrice * 100) / 100,
-    outputPricePerMToken: Math.round(outputPrice * 100) / 100,
-    cachedInputPrice: Math.round(inputPrice * 0.1 * 100) / 100,
-    contextWindow: model.context_length || 0,
-    contextLabel: formatContext(model.context_length),
-    modalities: model.architecture?.modality?.split('+') || ['text'],
-    license: model.architecture?.instruct_type ? 'open' : 'proprietary',
-    source: 'openrouter',
+    return {
+      id: safeStr(model.id, 100),
+      name: safeStr(model.name || model.id, 100),
+      provider,
+      providerIcon: getProviderIcon(provider),
+      inputPricePerMToken: Math.round(inputPrice * 100) / 100,
+      outputPricePerMToken: Math.round(outputPrice * 100) / 100,
+      cachedInputPrice: Math.round(inputPrice * 0.1 * 100) / 100,
+      contextWindow: safeFloat(model.context_length),
+      contextLabel: formatContext(model.context_length),
+      modalities: typeof model.architecture?.modality === 'string'
+        ? model.architecture.modality.split('+').map(m => safeStr(m, 30))
+        : ['text'],
+      license: model.architecture?.instruct_type ? 'open' : 'proprietary',
+      source: 'openrouter',
+    }
+  } catch (err) {
+    // Skip malformed individual models rather than failing the whole list
+    console.warn('Failed to normalize OpenRouter model:', model?.id, err.message)
+    return null
   }
 }
 
 function extractProvider(modelId) {
+  if (typeof modelId !== 'string') return 'Unknown'
   const parts = modelId.split('/')
   if (parts.length > 1) {
     const map = {
@@ -42,7 +85,7 @@ function extractProvider(modelId) {
       'qwen': 'Alibaba',
       'deepseek': 'DeepSeek',
     }
-    return map[parts[0]] || parts[0]
+    return map[parts[0]] || safeStr(parts[0], 30)
   }
   return 'Unknown'
 }
@@ -63,8 +106,9 @@ function getProviderIcon(provider) {
 }
 
 function formatContext(ctx) {
-  if (!ctx) return '?'
-  if (ctx >= 1000000) return `${(ctx / 1000000).toFixed(0)}M`
-  if (ctx >= 1000) return `${(ctx / 1000).toFixed(0)}K`
-  return ctx.toString()
+  const n = safeFloat(ctx)
+  if (!n) return '?'
+  if (n >= 1000000) return `${(n / 1000000).toFixed(0)}M`
+  if (n >= 1000) return `${(n / 1000).toFixed(0)}K`
+  return n.toString()
 }
