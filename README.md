@@ -2,6 +2,8 @@
 
 AI Model Intelligence Dashboard — compare LLMs, estimate inference costs, and explore infrastructure providers in one place.
 
+**🔗 Live demo: [inferscope.vercel.app](https://inferscope.vercel.app/)**
+
 ## What This Dashboard Does
 
 InferScope answers three questions every engineer building with LLMs faces:
@@ -335,12 +337,17 @@ npm run preview
 
 ### Deploy to Vercel
 
+The current production deployment lives at **[inferscope.vercel.app](https://inferscope.vercel.app/)**.
+
+To deploy your own:
+
 1. Push to GitHub
 2. Import the repo on [vercel.com](https://vercel.com)
 3. Add `GROQ_API_KEY` as an environment variable in project settings
-4. Deploy
+4. (Optional) Set `ALLOWED_ORIGIN` to your domain for CORS hardening
+5. Deploy
 
-The `api/ai-chat.js` serverless function handles AI requests in production.
+The `api/ai-chat.js` serverless function handles AI requests in production with built-in rate limiting (10 req/min per IP) and prompt-injection-safe context sanitization.
 
 ---
 
