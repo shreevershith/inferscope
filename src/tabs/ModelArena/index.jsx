@@ -250,13 +250,17 @@ export default function ModelArena() {
                     </td>
                   </tr>
                 )}
-                {filteredModels.map((model, i) => (
+                {filteredModels.map((model, i) => {
+                  const isTop = i === 0
+                  return (
                   <tr
                     key={model.id}
                     className={`transition-all duration-200 cursor-pointer ${
                       highlightedModelId === model.id
                         ? 'bg-primary/10 ring-1 ring-primary/30'
-                        : 'hover:bg-slate-800/50'
+                        : isTop
+                          ? 'bg-gradient-to-r from-primary/[0.08] to-transparent hover:from-primary/[0.12]'
+                          : 'hover:bg-slate-800/50'
                     }`}
                     onClick={() => setHighlightedModelId(highlightedModelId === model.id ? null : model.id)}
                   >
@@ -272,6 +276,11 @@ export default function ModelArena() {
                       <div className="flex items-center gap-2">
                         <div className={`w-1 h-5 rounded-full ${i === 0 ? 'bg-primary' : i === 1 ? 'bg-primary/60' : i === 2 ? 'bg-primary/30' : 'bg-transparent'}`} />
                         <span className="text-white font-black text-sm">#{model.rank || i + 1}</span>
+                        {isTop && (
+                          <span className="ml-1 text-[0.55rem] font-black tracking-wider uppercase px-1.5 py-0.5 rounded bg-primary text-on-primary">
+                            Top
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-3 py-3.5 font-bold text-white text-sm">{model.name}</td>
@@ -298,13 +307,18 @@ export default function ModelArena() {
                     <td className="px-3 py-3.5 text-right" onClick={e => e.stopPropagation()}>
                       <button
                         onClick={() => handleCalculate(model)}
-                        className="text-[0.6rem] font-black tracking-widest text-primary border border-primary/30 px-2.5 py-1.5 rounded hover:bg-primary hover:text-on-primary transition-all active:scale-95"
+                        className={`text-[0.6rem] font-black tracking-widest px-2.5 py-1.5 rounded transition-all active:scale-95 ${
+                          isTop
+                            ? 'bg-primary text-on-primary hover:opacity-90 shadow-[0_0_10px_rgba(255,225,136,0.3)]'
+                            : 'text-primary border border-primary/30 hover:bg-primary hover:text-on-primary'
+                        }`}
                       >
                         CALCULATE
                       </button>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

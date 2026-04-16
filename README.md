@@ -99,10 +99,14 @@ Cache Savings           = costWithoutCaching - monthlyCost
 | **Cached Monthly Savings** | Dollar amount saved by caching vs paying full price for all input tokens |
 
 **Charts:**
-- **Monthly Cost Distribution** — Stacked bar showing the split between input token cost, output token cost, and caching savings
-- **Cost vs Volume** — Line chart plotting monthly cost at 8 request volumes (100, 500, 1K, 5K, 10K, 25K, 50K, 100K requests/day) to visualize how costs scale
+- **Monthly Cost Distribution** — Horizontal stacked bar showing the split between input token cost and output token cost. Cached savings shown as a separate emerald label below the chart (rather than part of the stack, since savings aren't a cost component).
+- **Cost vs Volume** — Line chart plotting monthly cost at 8 request volumes (100, 500, 1K, 5K, 10K, 25K, 50K, 100K requests/day). Uses a **log-scale X-axis** so the spacing between decades is proportional — avoiding the misleading "hockey-stick" artifact that appears when plotting a wide volume range on a linear axis.
 
-**Real-time timestamps** — Shows when pricing data was last refreshed (e.g., "2m ago"), with a live indicator.
+**Metric cards** include optional trend chips ("Efficient ↑", "30% hit rate ↑") and source tags ("LIVE · OPENROUTER", "12-month projection") to ground each number in its origin.
+
+**Real-time timestamps** — Shows when pricing data was last refreshed (e.g., "2m ago"), with a live pulse indicator.
+
+**Debounced inputs** — Token-input fields use 300ms debounce before pushing to the store, preventing Recharts from re-rendering on every keystroke.
 
 **Scenario multipliers:**
 
@@ -159,15 +163,19 @@ Compare API inference providers and self-hosted GPU options side-by-side.
 
 ---
 
-### AI Advisor (Persistent Side Panel)
+### AI Advisor (Slide-Out Panel)
 
 A Groq-powered (Llama 3.3 70B) conversational assistant available from any tab via the floating sparkle button.
 
-**What it knows (context injected per message):**
-- Top 10 models from the Arena leaderboard with ELO scores and pricing
-- Your currently selected model (if any)
-- Your Cost Calculator scenario (model, request volume, caching rate, projected cost)
-- Selected infrastructure provider
+**Active Context Feed sidebar** — Instead of hiding context behind a chat prompt, a dedicated sidebar shows the user (and demonstrates trust) exactly what the AI can see:
+- Selected Model with its input price
+- Request Volume and scenario
+- Cache Hit Rate
+- Top-Ranked model by ELO
+
+**Always-visible Suggested Questions** panel with seed prompts like "Best model under $500/mo", "RAG chatbot setup costs", "When should I use caching?". One click sends them as a chat message.
+
+**Error UX** — Network/API failures render as distinct rose-tinted bubbles with an error icon, clearly separated from real AI responses.
 
 **Example questions:**
 - "What's the cheapest model for document extraction at scale?"
@@ -177,8 +185,9 @@ A Groq-powered (Llama 3.3 70B) conversational assistant available from any tab v
 
 **Guardrails:**
 - Scoped to AI/ML model selection and infrastructure topics
-- Input sanitized and capped at 500 characters
+- User message and all context fields sanitized server-side before system-prompt interpolation (prevents prompt injection)
 - API key never exposed to the browser (proxied through Vercel serverless / Vite dev middleware)
+- Only mounted in the DOM when open (saves 8 idle Zustand subscriptions)
 
 ---
 
@@ -187,6 +196,18 @@ A Groq-powered (Llama 3.3 70B) conversational assistant available from any tab v
 A persistent banner below the header showing:
 - **AI Model Intelligence** headline with tagline
 - **Live stat chips** — Models Tracked, Providers monitored, Last Refreshed timestamp (real, from data fetch)
+
+---
+
+### Welcome Tour (First Visit)
+
+New users see a 4-step onboarding modal that auto-previews each tab as they advance:
+1. **Model Arena** → switches to Tab 1
+2. **Cost Calculator** → switches to Tab 2
+3. **Infra Explorer** → switches to Tab 3
+4. **AI Advisor** → final summary step
+
+Gated by localStorage (`inferscope-tour-seen-v1`), so returning users aren't interrupted. "Skip tour" dismisses immediately.
 
 ---
 
@@ -358,7 +379,7 @@ inferscope/
 ├── api/
 │   └── ai-chat.js              # Vercel serverless — Groq proxy with input sanitization
 ├── src/
-│   ├── App.jsx                  # 3-tab shell + hero banner + theme toggle + AI Advisor FAB
+│   ├── App.jsx                  # 3-tab shell + hero banner + theme toggle + AI Advisor FAB + welcome tour + footer
 │   ├── store/dashboardStore.js  # Zustand (5 slices, cross-tab actions)
 │   ├── constants/
 │   │   ├── modelDefaults.js     # 8 seed models with full metadata
@@ -376,14 +397,16 @@ inferscope/
 │   │   └── useCostCalculator.js # useMemo — reactive cost computation
 │   ├── components/
 │   │   ├── HeroBanner.jsx       # Live stats banner (models tracked, providers, last refresh)
+│   │   ├── WelcomeTour.jsx      # 4-step first-visit onboarding modal
+│   │   ├── Footer.jsx           # Data source attribution footer
 │   │   ├── ui/
-│   │   │   ├── MetricCard.jsx   # KPI card with optional info tooltip
+│   │   │   ├── MetricCard.jsx   # KPI card with tooltip, trend chips, source tags
 │   │   │   ├── InfoTooltip.jsx  # Hover/click educational tooltip
 │   │   │   ├── LoadingSpinner.jsx
 │   │   │   ├── SkeletonCard.jsx
 │   │   │   └── ErrorBoundary.jsx
 │   │   └── advisor/
-│   │       └── AdvisorPanel.jsx # Slide-out AI chat with context badges
+│   │       └── AdvisorPanel.jsx # Slide-out AI chat with Active Context Feed sidebar
 │   └── tabs/
 │       ├── ModelArena/
 │       │   ├── index.jsx            # Leaderboard, filters, Arena Insight sidebar
@@ -405,9 +428,14 @@ inferscope/
 ## Security
 
 - **API key isolation** — `GROQ_API_KEY` lives in `.env.local` (gitignored), never in client-side code. Proxied through Vercel serverless / Vite dev middleware.
-- **Input sanitization** — Chat messages stripped of non-printable characters, capped at 500 chars (both client and server).
-- **Generic error messages** — API errors return user-safe messages, no internal details leaked.
-- **Numeric validation** — Calculator inputs enforce `min=0` to prevent negative/NaN cost projections.
+- **Prompt injection defense** — All `context` fields (top models, calculator scenario, selected provider) are sanitized server-side before being interpolated into the system prompt. Patterns like "ignore previous instructions" are redacted, non-printable chars stripped, lengths capped per field. Applied in both `api/ai-chat.js` and the Vite dev proxy.
+- **Input sanitization** — User messages stripped of non-printable characters, capped at 500 chars (both client and server).
+- **Rate limiting** — In-memory IP-based rate limiter: 10 req/min in production, 30 req/min in dev. Returns `429` with a user-safe retry message.
+- **Body size caps** — Request bodies are capped (4KB production, 8KB dev) to prevent memory-abuse attacks.
+- **CORS hardening** — Set `ALLOWED_ORIGIN` env var to restrict the API to your production domain.
+- **Generic error messages** — API errors return user-safe messages; internal details (hostnames, stack traces) are logged server-side only, never leaked to clients.
+- **Response validation** — External API responses (OpenRouter, LMSYS Arena) are shape-checked and timeouts enforced via `AbortController` (10s). Malformed individual entries are dropped rather than crashing the whole batch.
+- **NaN firewall** — All numeric calculator inputs are coerced to finite non-negative numbers before arithmetic. `cachingHitRate` is clamped to [0, 100]. Guarantees no `NaN` or `Infinity` leaks into the UI.
 - **Error boundary** — App-level React error boundary catches render crashes with recovery UI.
 
 ## License

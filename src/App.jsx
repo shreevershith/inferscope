@@ -3,6 +3,8 @@ import useDashboardStore from './store/dashboardStore'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import AdvisorPanel from './components/advisor/AdvisorPanel'
 import HeroBanner from './components/HeroBanner'
+import WelcomeTour from './components/WelcomeTour'
+import Footer from './components/Footer'
 import ModelArena from './tabs/ModelArena'
 import CostCalculator from './tabs/CostCalculator'
 import InfraExplorer from './tabs/InfraExplorer'
@@ -107,6 +109,8 @@ export default function App() {
         </ErrorBoundary>
       </main>
 
+      <Footer />
+
       {/* AI Advisor FAB */}
       <button
         onClick={toggleAdvisorPanel}
@@ -118,6 +122,9 @@ export default function App() {
 
       {/* AI Advisor Panel — only mount when open to avoid 8 idle subscriptions */}
       {isPanelOpen && <AdvisorPanel />}
+
+      {/* First-visit welcome tour (localStorage-gated) */}
+      <WelcomeTour />
     </div>
   )
 }

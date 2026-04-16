@@ -18,8 +18,13 @@ const CHART_TOOLTIP_STYLE = { background: '#1e293b', border: '1px solid #334155'
 const CHART_TICK_STYLE = { fill: '#94a3b8', fontSize: 10 }
 const formatDollarTick = v => `$${v.toFixed(0)}`
 const formatCompactDollarTick = v => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v.toFixed(0)}`
-const formatBreakdownTooltip = v => [`$${v.toFixed(2)}`, '']
-const formatVolumeTooltip = v => [`$${v.toFixed(2)}`, 'Monthly Cost']
+const formatBreakdownTooltip = (v, name) => [`$${v.toFixed(2)}`, name]
+const formatVolumeTooltip = (v, _n, entry) => [`$${v.toFixed(2)}`, `Monthly Cost @ ${entry?.payload?.label || '—'}/day`]
+// Log-scale x-axis: pin ticks to our 8 sweep points so the axis labels stay readable
+// Domain extends slightly past the endpoints so the 100 and 100K dots don't clip at the chart edges
+const VOLUME_TICKS = [100, 500, 1000, 5000, 10000, 25000, 50000, 100000]
+const VOLUME_DOMAIN = [80, 130000]
+const formatVolumeTick = v => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v.toString()
 
 const TOKEN_INPUTS = [
   { key: 'inputTokens', label: 'Input Tokens / Req', icon: 'input' },
@@ -86,7 +91,7 @@ export default function CostCalculator() {
     }
   }, [modelList, setInputs])
 
-  const breakdownData = useMemo(() => [costs.breakdown], [costs.breakdown])
+  const breakdownData = useMemo(() => [{ name: 'Cost', ...costs.breakdown }], [costs.breakdown])
 
   return (
     <div className="space-y-8">
@@ -180,12 +185,13 @@ export default function CostCalculator() {
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <MetricCard
+              accent
               label="Estimated Monthly Cost"
               value={fmt(costs.monthlyCost)}
               sublabel={`Reflecting current ${inputs.selectedModelName || 'model'} pricing`}
               icon="payments"
-              accent
               tooltip="Total monthly cost = (input tokens + output tokens) x price per token x requests per day x 30 days, minus caching savings."
+              source="Live · OpenRouter"
             />
             <MetricCard
               label="Average Cost / Request"
@@ -193,6 +199,7 @@ export default function CostCalculator() {
               sublabel={costs.costPerRequest < 0.01 ? 'Efficiency: HIGH' : 'Efficiency: MODERATE'}
               icon="speed"
               tooltip="Monthly cost divided by total requests. Below $0.01/req is considered highly cost-efficient."
+              trend={costs.costPerRequest < 0.01 ? { value: 'Efficient', direction: 'up' } : { value: 'Moderate', direction: 'flat' }}
             />
             <MetricCard
               label="Annual Expenditure"
@@ -200,6 +207,7 @@ export default function CostCalculator() {
               sublabel="Projected based on current traffic pattern"
               icon="calendar_month"
               tooltip="Monthly cost x 12. Actual costs may vary with pricing changes and traffic fluctuations."
+              source="12-month projection"
             />
             <MetricCard
               label="Cached Monthly Savings"
@@ -208,6 +216,7 @@ export default function CostCalculator() {
               icon="savings"
               accent
               tooltip="Amount saved by caching repeated input tokens. Cached tokens cost ~90% less. Increase cache hit rate to maximize savings."
+              trend={costs.cacheSavings > 0 ? { value: `${inputs.cachingHitRate}% hit rate`, direction: 'up' } : null}
             />
           </div>
 
@@ -215,28 +224,53 @@ export default function CostCalculator() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Cost Breakdown */}
             <div className="dash-card p-5">
-              <h4 className="label-micro mb-4">Monthly Cost Distribution</h4>
+              <div className="flex items-baseline justify-between mb-4">
+                <h4 className="label-micro">Monthly Cost Distribution</h4>
+                <p className="text-[0.6rem] text-slate-500 uppercase tracking-wider">Source: Live Pricing</p>
+              </div>
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={breakdownData} layout="vertical">
+                <BarChart data={breakdownData} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
                   <XAxis type="number" tick={CHART_TICK_STYLE} tickFormatter={formatDollarTick} />
                   <YAxis type="category" dataKey="name" hide />
-                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={formatBreakdownTooltip} />
-                  <Bar dataKey="inputCost" name="Input" stackId="a" fill="#ffe188" radius={[4, 0, 0, 4]} />
-                  <Bar dataKey="outputCost" name="Output" stackId="a" fill="#efc200" />
-                  <Bar dataKey="cachedSavings" name="Savings" stackId="a" fill="#4ade80" radius={[0, 4, 4, 0]} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={formatBreakdownTooltip} cursor={{ fill: 'rgba(255,225,136,0.05)' }} />
+                  <Bar dataKey="inputCost" name="Input Cost" stackId="a" fill="#ffe188" radius={[4, 0, 0, 4]} />
+                  <Bar dataKey="outputCost" name="Output Cost" stackId="a" fill="#efc200" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+              <div className="mt-3 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[#ffe188]" /><span className="text-slate-400">Input</span></span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[#efc200]" /><span className="text-slate-400">Output</span></span>
+                </div>
+                <span className="text-emerald-400 font-medium">{fmt(costs.cacheSavings)} cache savings</span>
+              </div>
             </div>
 
             {/* Cost vs Volume */}
             <div className="dash-card p-5">
-              <h4 className="label-micro mb-4">Cost vs Volume</h4>
+              <div className="flex items-baseline justify-between mb-4">
+                <h4 className="label-micro">Cost vs Volume</h4>
+                <p className="text-[0.6rem] text-slate-500 uppercase tracking-wider">Log scale · req/day</p>
+              </div>
               <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={volumeCurve}>
+                <LineChart data={volumeCurve} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="label" tick={CHART_TICK_STYLE} />
-                  <YAxis tick={CHART_TICK_STYLE} tickFormatter={formatCompactDollarTick} />
-                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={formatVolumeTooltip} />
+                  <XAxis
+                    type="number"
+                    dataKey="requestsPerDay"
+                    scale="log"
+                    domain={VOLUME_DOMAIN}
+                    ticks={VOLUME_TICKS}
+                    tick={CHART_TICK_STYLE}
+                    tickFormatter={formatVolumeTick}
+                  />
+                  <YAxis
+                    tick={CHART_TICK_STYLE}
+                    tickFormatter={formatCompactDollarTick}
+                    domain={[0, 'dataMax']}
+                    padding={{ top: 10 }}
+                  />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={formatVolumeTooltip} labelFormatter={v => `${formatVolumeTick(v)} req/day`} />
                   <Line type="monotone" dataKey="monthlyCost" stroke="#ffe188" strokeWidth={2} dot={{ fill: '#ffe188', r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
