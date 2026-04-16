@@ -5,9 +5,10 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import { SCENARIO_MULTIPLIERS } from '../../constants/taskCategories'
 
 const fmt = (n) => {
+  if (typeof n !== 'number' || !isFinite(n)) return '$—'
   if (n >= 1000000) return `$${(n / 1000000).toFixed(1)}M`
   if (n >= 1000) return `$${(n / 1000).toFixed(1)}K`
-  return `$${n.toFixed(2)}`
+  return `$${Math.max(0, n).toFixed(2)}`
 }
 
 export default function CostCalculator() {
@@ -75,8 +76,10 @@ export default function CostCalculator() {
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">{icon}</span>
                 <input
                   type="number"
+                  min="0"
+                  max="1000000"
                   value={inputs[key]}
-                  onChange={e => handleInput(key, e.target.value)}
+                  onChange={e => handleInput(key, Math.max(0, e.target.value))}
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -129,18 +132,21 @@ export default function CostCalculator() {
               sublabel={`Reflecting current ${inputs.selectedModelName || 'model'} pricing`}
               icon="payments"
               accent
+              tooltip="Total monthly cost = (input tokens + output tokens) x price per token x requests per day x 30 days, minus caching savings."
             />
             <MetricCard
               label="Average Cost / Request"
               value={`$${costs.costPerRequest.toFixed(4)}`}
               sublabel={costs.costPerRequest < 0.01 ? 'Efficiency: HIGH' : 'Efficiency: MODERATE'}
               icon="speed"
+              tooltip="Monthly cost divided by total requests. Below $0.01/req is considered highly cost-efficient."
             />
             <MetricCard
               label="Annual Expenditure"
               value={fmt(costs.annualCost)}
               sublabel="Projected based on current traffic pattern"
               icon="calendar_month"
+              tooltip="Monthly cost x 12. Actual costs may vary with pricing changes and traffic fluctuations."
             />
             <MetricCard
               label="Cached Monthly Savings"
@@ -148,6 +154,7 @@ export default function CostCalculator() {
               sublabel={`${inputs.cachingHitRate}% volume offset`}
               icon="savings"
               accent
+              tooltip="Amount saved by caching repeated input tokens. Cached tokens cost ~90% less. Increase cache hit rate to maximize savings."
             />
           </div>
 

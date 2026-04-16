@@ -16,14 +16,16 @@ export default function App() {
   const activeTab = useDashboardStore(s => s.activeTab)
   const setActiveTab = useDashboardStore(s => s.setActiveTab)
   const toggleAdvisorPanel = useDashboardStore(s => s.toggleAdvisorPanel)
+  const theme = useDashboardStore(s => s.theme)
+  const setTheme = useDashboardStore(s => s.setTheme)
 
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="w-full sticky top-0 bg-dash-bg/90 backdrop-blur-xl z-30 border-b border-slate-800">
+      <header className="w-full sticky top-0 bg-dash-bg/90 dark:bg-dash-bg/90 bg-white/90 backdrop-blur-xl z-30 border-b border-slate-200 dark:border-slate-800">
         <div className="flex justify-between items-center px-8 h-16 max-w-[1920px] mx-auto">
           {/* Brand */}
-          <div className="text-2xl font-black tracking-tighter text-primary">
+          <div className="text-2xl font-black tracking-tighter text-primary dark:text-primary text-amber-600">
             InferScope
           </div>
 
@@ -35,8 +37,8 @@ export default function App() {
                 onClick={() => setActiveTab(i)}
                 className={`pb-1 transition-colors ${
                   activeTab === i
-                    ? 'text-primary font-bold border-b-2 border-primary'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'dark:text-primary text-amber-600 font-bold border-b-2 dark:border-primary border-amber-600'
+                    : 'text-slate-400 dark:hover:text-slate-200 hover:text-slate-700'
                 }`}
               >
                 {tab.name}
@@ -46,8 +48,22 @@ export default function App() {
 
           {/* Actions */}
           <div className="flex items-center gap-4">
-            <button className="hover:bg-slate-800/50 transition-all p-2 rounded-lg text-slate-400">
-              <span className="material-symbols-outlined">dark_mode</span>
+            <button
+              onClick={() => {
+                const html = document.documentElement
+                const isDark = html.classList.contains('dark')
+                if (isDark) {
+                  html.classList.remove('dark')
+                  setTheme('light')
+                } else {
+                  html.classList.add('dark')
+                  setTheme('dark')
+                }
+              }}
+              className="hover:bg-slate-800/50 transition-all p-2 rounded-lg text-slate-400 hover:text-primary"
+              title="Toggle theme"
+            >
+              <span className="material-symbols-outlined">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
             </button>
             <div className="h-8 w-8 rounded-full bg-slate-800 ring-2 ring-primary/20 flex items-center justify-center text-xs font-bold text-primary">
               U

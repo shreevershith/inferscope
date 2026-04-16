@@ -38,7 +38,11 @@ export default function AdvisorPanel() {
       const response = await sendChatMessage(message, context)
       addChatMessage({ role: 'assistant', text: response })
     } catch (err) {
-      addChatMessage({ role: 'assistant', text: `I'm unable to respond right now. ${err.message}` })
+      console.error('Advisor error:', err)
+      const errorMsg = err.message?.includes('fetch')
+        ? 'Network connection error. Please check your connection.'
+        : 'Unable to respond right now. Please try again.'
+      addChatMessage({ role: 'assistant', text: errorMsg })
     } finally {
       setChatLoading(false)
     }

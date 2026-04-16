@@ -3,9 +3,10 @@ import useDashboardStore from '../../store/dashboardStore'
 import { useModelData } from '../../hooks/useModelData'
 import { TASK_CATEGORIES } from '../../constants/taskCategories'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 export default function ModelArena() {
-  const { models, isLoading } = useModelData()
+  const { models, isLoading, error } = useModelData()
   const applyModelToCalculator = useDashboardStore(s => s.applyModelToCalculator)
   const setActiveTab = useDashboardStore(s => s.setActiveTab)
   const toggleCompareModel = useDashboardStore(s => s.toggleCompareModel)
@@ -43,22 +44,36 @@ export default function ModelArena() {
 
   if (isLoading && models.length === 0) return <LoadingSpinner label="Loading model data..." />
 
+  if (error && models.length === 0) return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <div className="dash-card p-8 text-center max-w-md">
+        <span className="material-symbols-outlined text-error text-4xl mb-4 block">cloud_off</span>
+        <h2 className="text-lg font-bold text-white mb-2">Failed to load models</h2>
+        <p className="text-sm text-slate-400 mb-4">Could not fetch model data. Using seed data as fallback.</p>
+      </div>
+    </div>
+  )
+
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       {/* Main Content */}
-      <div className="flex-1 lg:w-2/3 space-y-8">
+      <div className="flex-1 lg:w-3/4 space-y-8">
         {/* Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="stat-card">
             <div>
-              <p className="label-micro mb-1">Total Models</p>
+              <InfoTooltip text="Total number of LLM models tracked across all providers. Data sourced from OpenRouter and LMSYS Arena leaderboards.">
+                <p className="label-micro mb-1">Total Models</p>
+              </InfoTooltip>
               <h2 className="text-4xl font-black text-white tracking-tighter">{models.length}</h2>
             </div>
             <span className="material-symbols-outlined text-primary/20 text-5xl">database</span>
           </div>
           <div className="bg-dash-card p-6 rounded-lg border-l-4 border-slate-600 flex items-center justify-between shadow-lg shadow-black/20">
             <div>
-              <p className="label-micro mb-1">Arena ELO High</p>
+              <InfoTooltip text="The highest Arena ELO score from the LMSYS Chatbot Arena. ELO ratings are based on human preference votes from blind A/B comparisons between models.">
+                <p className="label-micro mb-1">Arena ELO High</p>
+              </InfoTooltip>
               <h2 className="text-4xl font-black text-white tracking-tighter">{models[0]?.arenaElo || '—'}</h2>
             </div>
             <span className="material-symbols-outlined text-slate-600/20 text-5xl">leaderboard</span>
@@ -123,26 +138,40 @@ export default function ModelArena() {
         </div>
 
         {/* Main Table */}
+        <div className="flex items-center justify-between mb-2 px-1">
+          <p className="text-xs text-slate-400">
+            Showing <span className="text-white font-bold">{filteredModels.length}</span> of {models.length} models
+            {activeTask !== 'all' && <span className="text-primary"> — filtered by {activeTask}</span>}
+          </p>
+        </div>
         <div className="dash-card overflow-hidden">
           <div className="overflow-x-auto no-scrollbar">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[900px]">
               <thead>
                 <tr className="bg-slate-800/40">
                   <th className="px-4 py-4 w-10 text-center">
                     <span className="text-xs text-slate-500">☐</span>
                   </th>
-                  <th className="px-6 py-4 label-micro">Rank</th>
-                  <th className="px-6 py-4 label-micro">Model Name</th>
-                  <th className="px-6 py-4 label-micro">Provider</th>
-                  <th className="px-6 py-4 label-micro text-center">Arena ELO</th>
-                  <th className="px-6 py-4 label-micro hidden lg:table-cell">Quality</th>
-                  <th className="px-6 py-4 label-micro hidden md:table-cell">Context</th>
-                  <th className="px-6 py-4 label-micro">$/M Tokens</th>
-                  <th className="px-6 py-4 label-micro hidden md:table-cell">Speed</th>
-                  <th className="px-6 py-4 label-micro text-right">Action</th>
+                  <th className="px-4 py-4 label-micro">Rank</th>
+                  <th className="px-4 py-4 label-micro">Model Name</th>
+                  <th className="px-4 py-4 label-micro">Provider</th>
+                  <th className="px-4 py-4 label-micro text-center" title="ELO rating from LMSYS Chatbot Arena — higher is better, based on human preference votes">Arena ELO</th>
+                  <th className="px-4 py-4 label-micro hidden lg:table-cell" title="Normalized quality score (0-100) derived from Arena ELO rating">Quality</th>
+                  <th className="px-4 py-4 label-micro hidden md:table-cell">Context</th>
+                  <th className="px-4 py-4 label-micro">$/M Tokens</th>
+                  <th className="px-4 py-4 label-micro hidden md:table-cell">Speed</th>
+                  <th className="px-4 py-4 label-micro text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700/50">
+                {filteredModels.length === 0 && (
+                  <tr>
+                    <td colSpan="10" className="px-6 py-12 text-center text-slate-400">
+                      <span className="material-symbols-outlined text-3xl mb-2 block text-slate-600">search_off</span>
+                      No models match the current filters. Try adjusting your criteria.
+                    </td>
+                  </tr>
+                )}
                 {filteredModels.map((model, i) => (
                   <tr key={model.id} className="hover:bg-slate-800/50 transition-colors group">
                     <td className="px-4 py-5 text-center">
@@ -153,29 +182,29 @@ export default function ModelArena() {
                         className="rounded border-slate-700 bg-slate-900 text-primary focus:ring-primary"
                       />
                     </td>
-                    <td className="px-6 py-5">
+                    <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-1 h-6 ${i === 0 ? 'bg-primary' : 'bg-transparent'}`} />
                         <span className="text-white font-black">#{model.rank || i + 1}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-5 font-bold text-white">{model.name}</td>
-                    <td className="px-6 py-5">
+                    <td className="px-4 py-4 font-bold text-white">{model.name}</td>
+                    <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-primary/60 text-lg">{model.providerIcon || 'smart_toy'}</span>
                         <span className="text-xs text-slate-400">{model.provider}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-center font-mono text-primary font-bold">{model.arenaElo || '—'}</td>
-                    <td className="px-6 py-5 hidden lg:table-cell">
+                    <td className="px-4 py-4 text-center font-mono text-primary font-bold">{model.arenaElo || '—'}</td>
+                    <td className="px-4 py-4 hidden lg:table-cell">
                       <div className="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden">
                         <div className="h-full bg-primary" style={{ width: `${model.qualityScore || 50}%` }} />
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-xs text-slate-200 font-medium hidden md:table-cell">{model.contextLabel || '—'}</td>
-                    <td className="px-6 py-5 text-xs text-slate-200">${model.inputPricePerMToken?.toFixed(2) || '—'}</td>
-                    <td className="px-6 py-5 text-xs text-slate-200 hidden md:table-cell">{model.tokensPerSecond ? `${model.tokensPerSecond} tok/s` : '—'}</td>
-                    <td className="px-6 py-5 text-right">
+                    <td className="px-4 py-4 text-xs text-slate-200 font-medium hidden md:table-cell">{model.contextLabel || '—'}</td>
+                    <td className="px-4 py-4 text-xs text-slate-200">${model.inputPricePerMToken?.toFixed(2) || '—'}</td>
+                    <td className="px-4 py-4 text-xs text-slate-200 hidden md:table-cell">{model.tokensPerSecond ? `${model.tokensPerSecond} tok/s` : '—'}</td>
+                    <td className="px-4 py-4 text-right">
                       <button
                         onClick={() => handleCalculate(model)}
                         className="text-[0.65rem] font-black tracking-widest text-primary border border-primary/30 px-3 py-1.5 rounded hover:bg-primary hover:text-on-primary transition-all active:scale-95"
@@ -192,14 +221,14 @@ export default function ModelArena() {
       </div>
 
       {/* Right Sidebar */}
-      <aside className="lg:w-1/3 space-y-8">
+      <aside className="lg:w-1/4 space-y-6">
         {/* Arena Insight */}
-        <section className="dash-card p-6 border-slate-700/50">
-          <h3 className="text-lg font-black text-white mb-6 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">analytics</span>
+        <section className="dash-card p-4 border-slate-700/50">
+          <h3 className="text-sm font-black text-white mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-lg">analytics</span>
             Arena Insight
           </h3>
-          <div className="h-48 flex items-end gap-2 mb-4">
+          <div className="h-36 flex items-end gap-1.5 mb-3">
             {models.slice(0, 4).map((m, i) => {
               const maxElo = models[0]?.arenaElo || 1300
               const minElo = 1100
@@ -220,16 +249,16 @@ export default function ModelArena() {
         </section>
 
         {/* Optimization Tip */}
-        <section className="bg-gradient-to-br from-slate-800 to-dash-card p-6 rounded-lg border border-primary/20 shadow-lg shadow-black/20">
-          <div className="flex items-start gap-4">
-            <div className="bg-primary/20 p-2 rounded">
-              <span className="material-symbols-outlined text-primary">lightbulb</span>
+        <section className="bg-gradient-to-br from-slate-800 to-dash-card p-4 rounded-lg border border-primary/20 shadow-lg shadow-black/20">
+          <div className="flex items-start gap-3">
+            <div className="bg-primary/20 p-1.5 rounded shrink-0">
+              <span className="material-symbols-outlined text-primary text-lg">lightbulb</span>
             </div>
             <div>
-              <h4 className="text-sm font-black text-white mb-1">Optimization Tip</h4>
+              <h4 className="text-xs font-black text-white mb-1">Optimization Tip</h4>
               <p className="text-[0.75rem] text-slate-400 mb-4 font-medium">
-                {models.length > 3 && (
-                  <>Switching non-critical batch processing to <span className="text-primary font-semibold">{models[3]?.name}</span> could reduce costs by up to <span className="text-white font-black">{Math.round(((models[0]?.inputPricePerMToken - models[3]?.inputPricePerMToken) / models[0]?.inputPricePerMToken) * 100)}%</span>.</>
+                {models.length > 3 && models[0]?.inputPricePerMToken > 0 && (
+                  <>Switching non-critical batch processing to <span className="text-primary font-semibold">{models[3]?.name}</span> could reduce costs by up to <span className="text-white font-black">{Math.round(Math.max(0, ((models[0].inputPricePerMToken - (models[3]?.inputPricePerMToken || 0)) / models[0].inputPricePerMToken) * 100))}%</span>.</>
                 )}
               </p>
             </div>
