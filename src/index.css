@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-dash-bg text-on-surface min-h-screen;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  .glass-card {
+    background: rgba(30, 41, 59, 0.4);
+    backdrop-filter: blur(16px);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 25px rgba(255, 225, 136, 0.3), 0 0 50px rgba(255, 225, 136, 0.1);
+  }
+
+  .stat-card {
+    @apply bg-dash-card p-6 rounded-lg border-l-4 border-primary flex items-center justify-between shadow-lg shadow-black/20;
+  }
+
+  .dash-card {
+    @apply bg-dash-card rounded-lg shadow-lg shadow-black/20 border border-slate-700/30;
+  }
+
+  .label-micro {
+    @apply text-label-sm uppercase tracking-widest text-slate-400 font-black;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
