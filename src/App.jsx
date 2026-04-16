@@ -120,7 +120,7 @@ export default function App() {
         <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
       </button>
 
-      {/* AI Advisor Panel — only mount when open to avoid 8 idle subscriptions */}
+      {/* AI Advisor Panel: only mount when open to avoid 8 idle subscriptions */}
       {isPanelOpen && <AdvisorPanel />}
 
       {/* First-visit welcome tour (localStorage-gated) */}

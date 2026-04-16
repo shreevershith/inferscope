@@ -37,7 +37,7 @@ function sendJson(res, status, payload) {
   res.end(JSON.stringify(payload))
 }
 
-// Dev API plugin — proxies /api/ai-chat to Groq locally
+// Dev API plugin: proxies /api/ai-chat to Groq locally
 function devApiPlugin() {
   return {
     name: 'dev-api',
@@ -52,7 +52,7 @@ function devApiPlugin() {
           return sendJson(res, 429, { error: 'Too many requests. Please slow down.' })
         }
 
-        // Load API key fresh each time (no caching — supports .env changes without restart)
+        // Load API key fresh each time (no caching, supports .env changes without restart)
         const env = loadEnv('development', process.cwd(), '')
         const apiKey = env.GROQ_API_KEY
         if (!apiKey) {

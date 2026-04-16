@@ -8,7 +8,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Precision Slate — Primary (warm gold)
+        // Precision Slate: Primary (warm gold)
         primary: '#ffe188',
         'primary-container': '#ffcf04',
         'primary-dim': '#efc200',

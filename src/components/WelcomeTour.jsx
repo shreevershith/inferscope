@@ -7,7 +7,7 @@ const STEPS = [
   {
     icon: 'leaderboard',
     title: 'Model Arena',
-    body: 'A live leaderboard of every major LLM. Compare Arena ELO, quality, price-per-token, and speed side by side — sorted so the best value is at the top.',
+    body: 'A live leaderboard of every major LLM. Compare Arena ELO, quality, price-per-token, and speed side by side. The best value is always at the top.',
     badge: 'TAB 1',
   },
   {
@@ -25,7 +25,7 @@ const STEPS = [
   {
     icon: 'auto_awesome',
     title: 'AI Advisor',
-    body: 'Ask questions in plain English — the advisor knows your selected model, calculator scenario, and live pricing. It grounds every recommendation in your dashboard state.',
+    body: 'Ask questions in plain English. The advisor knows your selected model, calculator scenario, and live pricing, so every recommendation is grounded in your dashboard state.',
     badge: 'FLOATING',
   },
 ]
@@ -43,7 +43,7 @@ export default function WelcomeTour() {
         return () => clearTimeout(t)
       }
     } catch {
-      // localStorage disabled — just don't show
+      // localStorage disabled: just don't show
     }
   }, [])
 

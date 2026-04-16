@@ -4,15 +4,15 @@ import { useState } from 'react'
  * MetricCard
  *
  * Props:
- * - label: string — the metric name
- * - value: string | number — the big headline value
- * - sublabel?: string — small text below the value
- * - icon?: string — Material Symbols icon name (decorative)
- * - accent?: boolean — highlight with primary border
- * - hero?: boolean — fill with primary; use as the visual "headline" of a group
- * - tooltip?: string — info tooltip content
- * - trend?: { value: string, direction: 'up' | 'down' | 'flat' } — delta chip
- * - source?: string — small source tag shown bottom-left
+ * - label: string. The metric name.
+ * - value: string | number. The big headline value.
+ * - sublabel?: string. Small text below the value.
+ * - icon?: string. Material Symbols icon name (decorative).
+ * - accent?: boolean. Highlight with primary border.
+ * - hero?: boolean. Fill with primary; use as the visual "headline" of a group.
+ * - tooltip?: string. Info tooltip content.
+ * - trend?: { value: string, direction: 'up' | 'down' | 'flat' }. Delta chip.
+ * - source?: string. Small source tag shown bottom-left.
  */
 export default function MetricCard({ label, value, sublabel, icon, accent = false, hero = false, tooltip, trend, source }) {
   const [showTip, setShowTip] = useState(false)

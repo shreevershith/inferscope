@@ -78,7 +78,7 @@ export default function InfraExplorer() {
       <section>
         <div className="flex items-center justify-between mb-6">
           <h3 className="label-micro flex items-center gap-2">
-            GPU Pricing — Self-Hosted
+            Self-Hosted GPU Pricing
             <span className="text-[0.6rem] font-medium text-slate-500 normal-case tracking-normal">({GPU_PRICING.length} configs)</span>
           </h3>
           {compareGpus.length >= 2 && (

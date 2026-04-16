@@ -55,7 +55,7 @@ export default function AdvisorPanel() {
     }
   }
 
-  // Context cards — what the AI actually has access to
+  // Context cards: what the AI actually has access to
   const topModel = modelList?.[0]
   const contextCards = [
     calculatorInputs.selectedModelName && {
@@ -94,7 +94,7 @@ export default function AdvisorPanel() {
         onClick={() => setAdvisorPanelOpen(false)}
       />
 
-      {/* Panel — wider to fit context sidebar */}
+      {/* Panel: wider to fit context sidebar */}
       <div className="fixed right-0 top-0 h-full w-full sm:max-w-md lg:max-w-2xl dark:bg-dash-card bg-white border-l dark:border-slate-700/50 border-slate-200 z-50 flex flex-col dark:shadow-2xl dark:shadow-black/50 shadow-xl shadow-slate-300/50 animate-slideInRight">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b dark:border-slate-700/50 border-slate-200">
@@ -192,7 +192,7 @@ export default function AdvisorPanel() {
             </div>
           </div>
 
-          {/* Right sidebar — Active Context Feed + Suggested Questions */}
+          {/* Right sidebar: Active Context Feed + Suggested Questions */}
           <aside className="hidden lg:flex lg:flex-col w-72 border-l dark:border-slate-700/50 border-slate-200 dark:bg-slate-900/30 bg-amber-50/40 overflow-y-auto">
             <div className="p-5 space-y-4">
               <div>

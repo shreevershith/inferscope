@@ -21,7 +21,7 @@ const fetchAllModelData = async () => {
     sourceErrors.push('Arena')
   }
 
-  // Per-item normalization with filter — drops malformed entries instead of failing entire batch
+  // Per-item normalization with filter: drops malformed entries instead of failing entire batch
   const openRouterModels = openRouterRaw.status === 'fulfilled'
     ? openRouterRaw.value.slice(0, 100).map(normalizeOpenRouterModel).filter(Boolean)
     : []

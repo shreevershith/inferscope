@@ -6,7 +6,7 @@ export const config = {
 }
 
 // Simple in-memory rate limiter (per-IP, per-minute)
-// Note: ephemeral per serverless instance — for production, use a shared store like Redis/Upstash
+// Note: ephemeral per serverless instance. For production, use a shared store like Redis/Upstash.
 const RATE_LIMIT = 10 // requests per window
 const RATE_WINDOW_MS = 60 * 1000 // 1 minute
 const rateLimitMap = new Map()
@@ -46,7 +46,7 @@ function sanitizeContextField(value, maxLen = 300) {
 }
 
 export default async function handler(req, res) {
-  // Restrict CORS — set your production domain via env var
+  // Restrict CORS: set your production domain via env var
   const allowedOrigin = process.env.ALLOWED_ORIGIN || ''
   if (allowedOrigin) {
     res.setHeader('Access-Control-Allow-Origin', allowedOrigin)

@@ -13,7 +13,7 @@ const fmt = (n) => {
   return `$${Math.max(0, n).toFixed(2)}`
 }
 
-// Hoisted Recharts constants — prevent re-render churn
+// Hoisted Recharts constants: prevent re-render churn
 const CHART_TOOLTIP_STYLE = { background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }
 const CHART_TICK_STYLE = { fill: '#94a3b8', fontSize: 10 }
 const formatDollarTick = v => `$${v.toFixed(0)}`
@@ -39,7 +39,7 @@ export default function CostCalculator() {
   const modelsLastFetched = useDashboardStore(s => s.modelsLastFetched)
   const { costs, volumeCurve } = useCostCalculator()
 
-  // Local state for token input fields — debounced into the store to avoid 12x recalc per keystroke
+  // Local state for token input fields: debounced into the store to avoid 12x recalc per keystroke
   const [localTokens, setLocalTokens] = useState({
     inputTokens: inputs.inputTokens,
     outputTokens: inputs.outputTokens,
@@ -122,7 +122,7 @@ export default function CostCalculator() {
               className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="">Select a model</option>
-              {modelList.map(m => <option key={m.id} value={m.id}>{m.name} — ${m.inputPricePerMToken}/M</option>)}
+              {modelList.map(m => <option key={m.id} value={m.id}>{m.name} · ${m.inputPricePerMToken}/M</option>)}
             </select>
           </div>
 

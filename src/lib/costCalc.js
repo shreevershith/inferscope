@@ -2,7 +2,7 @@ import { SCENARIO_MULTIPLIERS } from '../constants/taskCategories'
 
 /**
  * Coerce any value to a finite non-negative number.
- * Acts as a NaN firewall — invalid inputs become 0 instead of NaN propagating to the UI.
+ * Acts as a NaN firewall: invalid inputs become 0 instead of NaN propagating to the UI.
  */
 function safeNum(value, fallback = 0) {
   const n = typeof value === 'number' ? value : parseFloat(value)
@@ -19,7 +19,7 @@ function clamp(value, min, max) {
 
 /**
  * Calculate monthly inference costs.
- * All inputs are validated and coerced — never returns NaN.
+ * All inputs are validated and coerced. Never returns NaN.
  */
 export function calculateCosts(inputs = {}) {
   const inputTokens = safeNum(inputs.inputTokens)

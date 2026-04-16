@@ -18,17 +18,17 @@ export default function HeroBanner() {
       <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.03] via-transparent to-primary/[0.02] pointer-events-none" />
 
       <div className="max-w-[1920px] mx-auto px-4 md:px-8 py-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-        {/* Left — headline */}
+        {/* Left: headline */}
         <div>
           <h1 className="text-lg sm:text-xl font-black text-white tracking-tight">
             AI Model Intelligence
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            Real-time benchmarks, pricing, and infrastructure — one place, always current.
+            Real-time benchmarks, pricing, and infrastructure. All in one place, always current.
           </p>
         </div>
 
-        {/* Right — live stat chips */}
+        {/* Right: live stat chips */}
         <div className="flex items-center gap-3 flex-wrap">
           {stats.map(stat => (
             <div

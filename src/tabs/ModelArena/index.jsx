@@ -207,7 +207,7 @@ export default function ModelArena() {
         <div className="flex items-center justify-between px-1">
           <p className="text-xs text-slate-400">
             Showing <span className="text-white font-bold">{filteredModels.length}</span> of {models.length} models
-            {activeTask !== 'all' && <span className="text-primary"> — filtered by {activeTask}</span>}
+            {activeTask !== 'all' && <span className="text-primary"> (filtered by {activeTask})</span>}
           </p>
           {compareModels.length >= 2 && (
             <button
@@ -325,7 +325,7 @@ export default function ModelArena() {
         </div>
       </div>
 
-      {/* Right Sidebar — Interactive Arena Insight */}
+      {/* Right Sidebar: Interactive Arena Insight */}
       <aside className="lg:w-1/4 space-y-5">
         <ArenaInsight
           models={modelsWithValue}
