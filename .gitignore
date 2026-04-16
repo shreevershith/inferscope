@@ -12,7 +12,6 @@ dist
 dist-ssr
 *.local
 .env
-.env.*
 .claude/settings.local.json
 
 # Stitch exports (design reference, not needed in repo)
