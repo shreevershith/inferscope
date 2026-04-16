@@ -59,7 +59,7 @@ export default function AdvisorPanel() {
       />
 
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-full sm:max-w-md bg-dash-card border-l border-slate-700/50 z-50 flex flex-col shadow-2xl shadow-black/50">
+      <div className="fixed right-0 top-0 h-full w-full sm:max-w-md bg-dash-card border-l border-slate-700/50 z-50 flex flex-col shadow-2xl shadow-black/50 animate-slideInRight">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/50">
           <h3 className="font-black text-white flex items-center gap-2">

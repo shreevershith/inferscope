@@ -30,7 +30,7 @@ export default function InfraExplorer() {
       {/* API Providers */}
       <section>
         <h3 className="label-micro mb-6">API Providers</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-staggerIn">
           {PROVIDERS.map(provider => (
             <div key={provider.id} className="dash-card p-6 flex flex-col gap-4 hover:border-primary/30 transition-colors">
               <div className="flex items-center gap-3">

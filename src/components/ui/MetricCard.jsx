@@ -20,7 +20,7 @@ export default function MetricCard({ label, value, sublabel, icon, accent = fals
               </button>
             )}
           </div>
-          <h3 className="text-2xl font-black text-white tracking-tight">{value}</h3>
+          <h3 key={value} className="text-2xl font-black text-white tracking-tight animate-countUp">{value}</h3>
           {sublabel && <p className="text-xs text-slate-500 mt-1">{sublabel}</p>}
         </div>
         {icon && (

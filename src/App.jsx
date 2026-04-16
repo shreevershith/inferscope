@@ -91,9 +91,11 @@ export default function App() {
       {/* Main Content */}
       <main className="max-w-[1920px] mx-auto px-4 md:px-8 py-8">
         <ErrorBoundary>
-          {activeTab === 0 && <ModelArena />}
-          {activeTab === 1 && <CostCalculator />}
-          {activeTab === 2 && <InfraExplorer />}
+          <div key={activeTab} className="animate-fadeIn">
+            {activeTab === 0 && <ModelArena />}
+            {activeTab === 1 && <CostCalculator />}
+            {activeTab === 2 && <InfraExplorer />}
+          </div>
         </ErrorBoundary>
       </main>
 
