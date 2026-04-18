@@ -250,6 +250,8 @@ InferScope ships with **Google Analytics 4** wired up for meaningful engagement 
 3. Add it to `.env.local` as `VITE_GA_MEASUREMENT_ID=G-YOUR-ID`
 4. For production: add the same variable to Vercel → Settings → Environment Variables
 
+**Dashboard setup (what to do inside GA):** see [`GA_SETUP.md`](./GA_SETUP.md) for the full one-time checklist — marking conversions, registering custom dimensions, building the core funnel, and a weekly-metrics guide.
+
 ---
 
 ## Cross-Tab Data Flows
