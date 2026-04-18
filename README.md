@@ -247,7 +247,7 @@ InferScope ships with **Google Analytics 4** wired up for meaningful engagement 
 **To activate in your own deploy:**
 1. Create a GA4 property at [analytics.google.com](https://analytics.google.com)
 2. Copy the measurement ID (format `G-XXXXXXXXXX`)
-3. Add it to `.env` as `VITE_GA_MEASUREMENT_ID=G-YOUR-ID`
+3. Add it to `.env.local` as `VITE_GA_MEASUREMENT_ID=G-YOUR-ID`
 4. For production: add the same variable to Vercel → Settings → Environment Variables
 
 ---
@@ -377,13 +377,13 @@ npm install
 
 ### Environment Setup
 
-Copy the template to `.env` (gitignored) and fill in your real values:
+Copy the template to `.env.local` (gitignored) and fill in your real values:
 
 ```bash
-cp .env.local.example .env
+cp .env.local.example .env.local
 ```
 
-Then edit `.env`:
+Then edit `.env.local`:
 
 ```
 # Required for AI Advisor. Free at https://console.groq.com
@@ -393,7 +393,7 @@ GROQ_API_KEY=gsk_your_real_key_here
 VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
 
-> **Note on env file precedence:** Vite loads `.env.local` > `.env`. The repo only commits `.env.local.example` (the template). Your real `.env` stays on your machine only. If you need a local-only override, create `.env.local` — it's gitignored by the `*.local` pattern.
+> **Note on env file precedence:** Vite's load order is `.env.local` > `.env` > baked defaults. The repo commits only `.env.local.example` (the template). Your real `.env.local` stays on your machine only — it's gitignored by the `*.local` pattern.
 
 ### Running Locally
 
@@ -486,7 +486,7 @@ inferscope/
 
 ## Security
 
-- **API key isolation** — `GROQ_API_KEY` lives in `.env` (gitignored), never in client-side code. Proxied through Vercel serverless / Vite dev middleware.
+- **API key isolation** — `GROQ_API_KEY` lives in `.env.local` (gitignored), never in client-side code. Proxied through Vercel serverless / Vite dev middleware.
 - **Prompt injection defense** — All `context` fields (top models, calculator scenario, selected provider) are sanitized server-side before being interpolated into the system prompt. Patterns like "ignore previous instructions" are redacted, non-printable chars stripped, lengths capped per field. Applied in both `api/ai-chat.js` and the Vite dev proxy.
 - **Input sanitization** — User messages stripped of non-printable characters, capped at 500 chars (both client and server).
 - **Rate limiting** — In-memory IP-based rate limiter: 10 req/min in production, 30 req/min in dev. Returns `429` with a user-safe retry message.

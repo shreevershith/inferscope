@@ -61,8 +61,9 @@ Always refer to DESIGN.md when generating or modifying any UI component.
 - When adding new user actions, add a corresponding event in `analytics.js` and call it from the UI
 
 ## Environment
-- `.env.local.example` is the committed template
-- Real values live in `.env` (gitignored)
+- `.env.local.example` is the committed template (tracked in git)
+- Real values live in `.env.local` (gitignored via `*.local` pattern)
+- Contributor workflow: `cp .env.local.example .env.local` then fill in keys
 - Required: `GROQ_API_KEY`
 - Optional: `VITE_GA_MEASUREMENT_ID`, `ALLOWED_ORIGIN`
 
