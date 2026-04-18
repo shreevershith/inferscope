@@ -148,7 +148,7 @@ export default function ModelArena() {
         </div>
 
         {/* Filter Bar */}
-        <div className="dash-card p-4 flex flex-col gap-4">
+        <div data-tour="arena-filters" className="dash-card p-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3 sm:gap-5">
             <div className="flex items-center gap-2">
               <span className="label-micro text-primary/80">Provider</span>
@@ -221,12 +221,12 @@ export default function ModelArena() {
         </div>
 
         {/* Main Table */}
-        <div className="dash-card overflow-hidden">
+        <div data-tour="arena-table" className="dash-card overflow-hidden">
           <div className="overflow-x-auto no-scrollbar">
             <table className="w-full text-left border-collapse min-w-[950px]">
               <thead>
                 <tr className="bg-slate-800/40">
-                  <th className="px-3 py-3 w-10 text-center">
+                  <th data-tour="arena-compare-col" className="px-3 py-3 w-10 text-center">
                     <span className="text-xs text-slate-500">☐</span>
                   </th>
                   <th className="px-3 py-3 label-micro">Rank</th>
@@ -234,7 +234,7 @@ export default function ModelArena() {
                   <th className="px-3 py-3 label-micro">Provider</th>
                   <th className="px-3 py-3 label-micro text-center" title="ELO rating from LMSYS Chatbot Arena">Arena ELO</th>
                   <th className="px-3 py-3 label-micro hidden lg:table-cell" title="Normalized quality score (0-100)">Quality</th>
-                  <th className="px-3 py-3 label-micro" title="Value = quality / price. Higher is better bang-for-buck">Value</th>
+                  <th data-tour="arena-value-col" className="px-3 py-3 label-micro" title="Value = quality / price. Higher is better bang-for-buck">Value</th>
                   <th className="px-3 py-3 label-micro hidden md:table-cell">Context</th>
                   <th className="px-3 py-3 label-micro">$/M</th>
                   <th className="px-3 py-3 label-micro hidden md:table-cell">Speed</th>

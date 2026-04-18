@@ -195,7 +195,7 @@ export default function AdvisorPanel() {
           {/* Right sidebar: Active Context Feed + Suggested Questions */}
           <aside className="hidden lg:flex lg:flex-col w-72 border-l dark:border-slate-700/50 border-slate-200 dark:bg-slate-900/30 bg-amber-50/40 overflow-y-auto">
             <div className="p-5 space-y-4">
-              <div>
+              <div data-tour="advisor-context">
                 <p className="label-micro mb-3">Active Context Feed</p>
                 <div className="space-y-2">
                   {contextCards.map(card => (
@@ -214,7 +214,7 @@ export default function AdvisorPanel() {
                 </div>
               </div>
 
-              <div>
+              <div data-tour="advisor-input">
                 <p className="label-micro mb-3">Suggested Questions</p>
                 <div className="space-y-2">
                   {SUGGESTED_QUESTIONS.map(q => (

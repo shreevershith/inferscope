@@ -97,7 +97,7 @@ export default function ArenaInsight({ models, filteredModels, highlightedModelI
   }, [chartData, activeView])
 
   return (
-    <section className="dash-card p-4 border-slate-700/50">
+    <section data-tour="arena-insight" className="dash-card p-4 border-slate-700/50">
       {/* Header with view selector */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-black text-white flex items-center gap-1.5">

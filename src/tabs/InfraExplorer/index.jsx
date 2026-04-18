@@ -33,7 +33,7 @@ export default function InfraExplorer() {
       </div>
 
       {/* API Providers */}
-      <section>
+      <section data-tour="infra-providers">
         <h3 className="label-micro mb-6 flex items-center gap-2">
           API Providers
           <span className="text-[0.6rem] font-medium text-slate-500 normal-case tracking-normal">({PROVIDERS.length} tracked)</span>
@@ -75,7 +75,7 @@ export default function InfraExplorer() {
       </section>
 
       {/* GPU Pricing */}
-      <section>
+      <section data-tour="infra-gpus">
         <div className="flex items-center justify-between mb-6">
           <h3 className="label-micro flex items-center gap-2">
             Self-Hosted GPU Pricing
@@ -96,7 +96,7 @@ export default function InfraExplorer() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-800/40">
-                  <th className="px-4 py-4 w-10 text-center label-micro">☐</th>
+                  <th data-tour="infra-compare" className="px-4 py-4 w-10 text-center label-micro">☐</th>
                   <th className="px-6 py-4 label-micro">GPU Model</th>
                   <th className="px-6 py-4 label-micro">VRAM</th>
                   <th className="px-6 py-4 label-micro">Provider</th>

@@ -86,6 +86,15 @@ const useDashboardStore = create(
     }),
     clearCompareModels: () => set({ compareModels: [] }),
 
+    // ── Tour Slice ──
+    tourChapter: null,  // 'A' | 'B' | 'C' | 'D' | null
+    tourStep: 0,
+    startChapter: (chapter) => set({ tourChapter: chapter, tourStep: 0 }),
+    endChapter: () => set({ tourChapter: null, tourStep: 0 }),
+    nextStep: () => set((state) => ({ tourStep: state.tourStep + 1 })),
+    prevStep: () => set((state) => ({ tourStep: Math.max(0, state.tourStep - 1) })),
+    goToStep: (step) => set({ tourStep: Math.max(0, step) }),
+
     // ── Advisor Context Aggregator ──
     getAdvisorContext: () => {
       const state = get()

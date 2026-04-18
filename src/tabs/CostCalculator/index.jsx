@@ -110,7 +110,7 @@ export default function CostCalculator() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Input Panel */}
-        <div className="dash-card p-6 space-y-5">
+        <div data-tour="calc-inputs" className="dash-card p-6 space-y-5">
           <h3 className="text-title-md font-black text-white">Estimate Your Costs</h3>
 
           {/* Model Selector */}
@@ -183,7 +183,7 @@ export default function CostCalculator() {
 
         {/* Output Cards */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div data-tour="calc-metrics" className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <MetricCard
               accent
               label="Estimated Monthly Cost"
@@ -221,7 +221,7 @@ export default function CostCalculator() {
           </div>
 
           {/* Charts */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div data-tour="calc-charts" className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Cost Breakdown */}
             <div className="dash-card p-5">
               <div className="flex items-baseline justify-between mb-4">
