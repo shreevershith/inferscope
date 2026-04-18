@@ -61,6 +61,30 @@
     @apply text-slate-500;
   }
 
+  /* Optimization Tip — dark mode default */
+  .optimization-tip {
+    background: linear-gradient(to bottom right, #1e293b, #1e293b);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2);
+  }
+
+  html:not(.dark) .optimization-tip {
+    background: linear-gradient(to bottom right, #fffbeb, #ffffff);
+    box-shadow: 0 4px 12px -2px rgb(245 158 11 / 0.1);
+    border-color: rgba(245, 158, 11, 0.25);
+  }
+
+  html:not(.dark) .optimization-tip h4 {
+    color: #1e293b;
+  }
+
+  html:not(.dark) .optimization-tip p {
+    color: #475569;
+  }
+
+  html:not(.dark) .optimization-tip .text-white {
+    color: #1e293b !important;
+  }
+
   /* Light mode overrides for text that uses dark-only colors */
   html:not(.dark) .text-white {
     color: #1e293b;

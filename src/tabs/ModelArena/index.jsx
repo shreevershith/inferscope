@@ -335,7 +335,7 @@ export default function ModelArena() {
         />
 
         {/* Optimization Tip */}
-        <section className="bg-gradient-to-br from-slate-800 to-dash-card p-4 rounded-lg border border-primary/20 shadow-lg shadow-black/20">
+        <section className="optimization-tip p-4 rounded-lg border border-primary/20 shadow-lg">
           <div className="flex items-start gap-3">
             <div className="bg-primary/20 p-1.5 rounded shrink-0">
               <span className="material-symbols-outlined text-primary text-lg">lightbulb</span>
