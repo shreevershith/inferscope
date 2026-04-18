@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import useDashboardStore from '../../store/dashboardStore'
 import { sendChatMessage } from '../../lib/aiClient'
+import { events } from '../../lib/analytics'
 
 const SUGGESTED_QUESTIONS = [
   'Compare Claude vs GPT for code',
@@ -35,6 +36,13 @@ export default function AdvisorPanel() {
   const handleSend = async (text) => {
     const message = text || input.trim()
     if (!message || isChatLoading) return
+
+    // Track which path user took: suggested chip vs typed
+    if (text && SUGGESTED_QUESTIONS.includes(text)) {
+      events.advisorSuggestedClick(text)
+    } else {
+      events.advisorMessageSent(message.length)
+    }
 
     setInput('')
     addChatMessage({ role: 'user', text: message })

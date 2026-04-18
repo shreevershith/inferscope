@@ -9,6 +9,8 @@ import ModelArena from './tabs/ModelArena'
 import CostCalculator from './tabs/CostCalculator'
 import InfraExplorer from './tabs/InfraExplorer'
 import { pickChapterToAutoStart } from './lib/tourTriggers'
+import { initAnalytics, events } from './lib/analytics'
+import ConsentBanner from './components/ConsentBanner'
 
 const TABS = [
   { name: 'Model Arena', icon: 'leaderboard' },
@@ -91,6 +93,24 @@ export default function App() {
     return () => clearTimeout(timer)
   }, [activeTab, isPanelOpen, tourChapter, startChapter])
 
+  // Initialize analytics once on mount (loads GA if user previously consented)
+  useEffect(() => {
+    initAnalytics()
+  }, [])
+
+  // Track tab switches
+  useEffect(() => {
+    const names = ['Model Arena', 'Cost Calculator', 'Infra Explorer']
+    events.tabSwitch(names[activeTab])
+  }, [activeTab])
+
+  // Track advisor opens (only on open, not close)
+  const prevPanelOpen = useRef(false)
+  useEffect(() => {
+    if (isPanelOpen && !prevPanelOpen.current) events.advisorOpen()
+    prevPanelOpen.current = isPanelOpen
+  }, [isPanelOpen])
+
   // Re-trigger helper: for chapters B/C/D, need to set the right tab/panel first
   const handleTourPick = (chapterId) => {
     if (chapterId === 'A') {
@@ -103,6 +123,7 @@ export default function App() {
       setActiveTab(0)
       setAdvisorPanelOpen(true)
     }
+    events.tourChapterStart(chapterId, 'manual')
     // Small delay to ensure the target elements exist in DOM before starting
     setTimeout(() => startChapter(chapterId), 200)
   }
@@ -147,9 +168,11 @@ export default function App() {
                 if (isDark) {
                   html.classList.remove('dark')
                   setTheme('light')
+                  events.themeToggle('light')
                 } else {
                   html.classList.add('dark')
                   setTheme('dark')
+                  events.themeToggle('dark')
                 }
               }}
               data-tour="theme-toggle"
@@ -212,6 +235,9 @@ export default function App() {
 
       {/* Contextual workflow tour (auto-fires per-section on first visit) */}
       <WelcomeTour />
+
+      {/* Cookie consent banner (first visit only) */}
+      <ConsentBanner />
     </div>
   )
 }

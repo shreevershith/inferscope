@@ -2,6 +2,7 @@ import { useState } from 'react'
 import useDashboardStore from '../../store/dashboardStore'
 import { PROVIDERS, GPU_PRICING } from '../../constants/providerMetadata'
 import GpuCompareDrawer from './GpuCompareDrawer'
+import { events } from '../../lib/analytics'
 
 export default function InfraExplorer() {
   const setActiveTab = useDashboardStore(s => s.setActiveTab)
@@ -12,6 +13,7 @@ export default function InfraExplorer() {
   const handleEstimateCost = (provider) => {
     applyProviderToCalculator(provider)
     setActiveTab(1)
+    events.providerEstimateCost(provider.name)
   }
 
   const toggleGpuCompare = (idx) => {
@@ -83,7 +85,7 @@ export default function InfraExplorer() {
           </h3>
           {compareGpus.length >= 2 && (
             <button
-              onClick={() => setShowCompare(true)}
+              onClick={() => { setShowCompare(true); events.gpuCompareOpen(compareGpus.length) }}
               className="text-[0.65rem] font-black tracking-widest text-on-primary bg-primary px-4 py-2 rounded hover:opacity-90 transition-opacity flex items-center gap-2 animate-pulse"
             >
               <span className="material-symbols-outlined text-sm">compare</span>

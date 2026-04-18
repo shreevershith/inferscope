@@ -6,6 +6,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import ArenaInsight from './ArenaInsight'
 import ModelCompareDrawer from './ModelCompareDrawer'
+import { events } from '../../lib/analytics'
 
 // Value score: quality per dollar (higher = better value)
 function computeValueScore(model) {
@@ -73,6 +74,8 @@ export default function ModelArena() {
   const handleCalculate = useCallback((model) => {
     applyModelToCalculator(model)
     setActiveTab(1)
+    events.modelSelect(model.id, model.name, 'arena_table_calculate')
+    events.calculateFromArena(model.name)
   }, [applyModelToCalculator, setActiveTab])
 
   // Get full model objects for comparison
@@ -154,7 +157,7 @@ export default function ModelArena() {
               <span className="label-micro text-primary/80">Provider</span>
               <select
                 value={providerFilter}
-                onChange={e => setProviderFilter(e.target.value)}
+                onChange={e => { setProviderFilter(e.target.value); events.filterApply('provider', e.target.value) }}
                 className="bg-slate-800/80 px-3 py-1.5 rounded text-xs font-medium text-slate-200 border border-slate-700 outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="all">All</option>
@@ -165,7 +168,7 @@ export default function ModelArena() {
               <span className="label-micro text-primary/80">License</span>
               <select
                 value={licenseFilter}
-                onChange={e => setLicenseFilter(e.target.value)}
+                onChange={e => { setLicenseFilter(e.target.value); events.filterApply('license', e.target.value) }}
                 className="bg-slate-800/80 px-3 py-1.5 rounded text-xs font-medium text-slate-200 border border-slate-700 outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="all">All</option>
@@ -189,7 +192,7 @@ export default function ModelArena() {
               {TASK_CATEGORIES.map(cat => (
                 <button
                   key={cat.id}
-                  onClick={() => setActiveTask(cat.id)}
+                  onClick={() => { setActiveTask(cat.id); events.filterApply('focus_task', cat.id) }}
                   className={`px-3 py-1.5 rounded text-label-sm font-bold transition-all ${
                     activeTask === cat.id
                       ? 'bg-primary text-on-primary'
@@ -211,7 +214,7 @@ export default function ModelArena() {
           </p>
           {compareModels.length >= 2 && (
             <button
-              onClick={() => setShowCompare(true)}
+              onClick={() => { setShowCompare(true); events.compareOpen(compareModels.length) }}
               className="text-[0.65rem] font-black tracking-widest text-on-primary bg-primary px-3 py-1.5 rounded hover:opacity-90 transition-all flex items-center gap-1.5 animate-pulse"
             >
               <span className="material-symbols-outlined text-sm">compare</span>

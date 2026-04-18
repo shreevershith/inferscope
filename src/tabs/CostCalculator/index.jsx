@@ -5,6 +5,7 @@ import MetricCard from '../../components/ui/MetricCard'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts'
 import { SCENARIO_MULTIPLIERS } from '../../constants/taskCategories'
 import { formatRelativeTime } from '../../lib/timeUtils'
+import { events } from '../../lib/analytics'
 
 const fmt = (n) => {
   if (typeof n !== 'number' || !isFinite(n)) return '$—'
@@ -167,7 +168,7 @@ export default function CostCalculator() {
               {Object.entries(SCENARIO_MULTIPLIERS).map(([key, { label }]) => (
                 <button
                   key={key}
-                  onClick={() => setInputs({ scenario: key })}
+                  onClick={() => { setInputs({ scenario: key }); events.calculatorScenario(key) }}
                   className={`flex-1 px-4 py-2 rounded text-label-sm font-bold transition-all ${
                     inputs.scenario === key
                       ? 'bg-primary text-on-primary'

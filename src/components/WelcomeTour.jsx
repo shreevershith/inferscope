@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import useDashboardStore from '../store/dashboardStore'
 import { markSeen } from '../lib/tourTriggers'
+import { events } from '../lib/analytics'
 
 // ─── Chapter config ────────────────────────────────────────────────────────
 // Each step:
@@ -275,8 +276,8 @@ export default function WelcomeTour() {
 
   const chapter = tourChapter ? CHAPTERS[tourChapter] : null
   const step = chapter?.[tourStep]
-  // On mobile, force selector to null → centered modal
-  const effectiveSelector = isMobile ? null : step?.selector
+  // Keep spotlight on mobile too — only the tooltip moves to a bottom sheet
+  const effectiveSelector = step?.selector
   const rect = useTargetRect(effectiveSelector)
 
   // Measure tooltip so we can position accurately
@@ -288,13 +289,18 @@ export default function WelcomeTour() {
   }, [tourChapter, tourStep, rect])
 
   // Scroll target into view when step changes
+  // On mobile, align to 'start' so the spotlight stays above the bottom sheet
   useEffect(() => {
     if (!effectiveSelector) return
     const el = document.querySelector(effectiveSelector)
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+      el.scrollIntoView({
+        behavior: 'smooth',
+        block: isMobile ? 'start' : 'center',
+        inline: 'center',
+      })
     }
-  }, [effectiveSelector])
+  }, [effectiveSelector, isMobile])
 
   // Keyboard nav
   useEffect(() => {
@@ -324,11 +330,13 @@ export default function WelcomeTour() {
   }
 
   function handleFinish() {
+    events.tourChapterComplete(tourChapter)
     markSeen(tourChapter)
     endChapter()
   }
 
   function handleSkip() {
+    events.tourChapterSkip(tourChapter, tourStep)
     markSeen(tourChapter)
     endChapter()
   }
@@ -336,7 +344,17 @@ export default function WelcomeTour() {
   const placement = step.placement || 'center'
   const useSpotlight = !!effectiveSelector && !!rect && placement !== 'center'
 
-  const tooltipPos = computeTooltipPosition(rect, placement, tooltipSize)
+  const tooltipPos = isMobile ? null : computeTooltipPosition(rect, placement, tooltipSize)
+
+  // On mobile: tooltip is a fixed bottom sheet (never overlaps spotlight)
+  // On desktop: tooltip is positioned relative to target
+  const tooltipStyle = isMobile
+    ? { bottom: 0, left: 0, right: 0, width: '100%', maxWidth: '100%', borderRadius: '1.5rem 1.5rem 0 0' }
+    : { top: tooltipPos.top, left: tooltipPos.left }
+
+  const tooltipClassName = isMobile
+    ? "fixed pointer-events-auto dark:bg-dash-card bg-white dark:shadow-2xl dark:shadow-black/50 shadow-xl border-t dark:border-slate-700/50 border-slate-200 overflow-hidden animate-slideUp"
+    : "absolute pointer-events-auto w-[360px] max-w-[90vw] dark:bg-dash-card bg-white rounded-2xl dark:shadow-2xl dark:shadow-black/50 shadow-xl border dark:border-slate-700/50 border-slate-200 overflow-hidden animate-fadeIn"
 
   return (
     <div className="fixed inset-0 z-[70] pointer-events-none">
@@ -360,15 +378,12 @@ export default function WelcomeTour() {
         />
       )}
 
-      {/* Tooltip card */}
+      {/* Tooltip card (positioned card on desktop, bottom sheet on mobile) */}
       <div
         ref={tooltipRef}
         key={`${tourChapter}-${tourStep}`}
-        className="absolute pointer-events-auto w-[360px] max-w-[90vw] dark:bg-dash-card bg-white rounded-2xl dark:shadow-2xl dark:shadow-black/50 shadow-xl border dark:border-slate-700/50 border-slate-200 overflow-hidden animate-fadeIn"
-        style={{
-          top: tooltipPos.top,
-          left: tooltipPos.left,
-        }}
+        className={tooltipClassName}
+        style={tooltipStyle}
       >
         {/* Gradient top stripe */}
         <div className="h-1 bg-gradient-to-r from-primary via-primary/60 to-transparent" />

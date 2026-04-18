@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { events } from '../../lib/analytics'
 
 const VIEWS = [
   { id: 'elo', label: 'ELO Ranking', icon: 'leaderboard' },
@@ -111,7 +112,7 @@ export default function ArenaInsight({ models, filteredModels, highlightedModelI
         {VIEWS.map(view => (
           <button
             key={view.id}
-            onClick={() => setActiveView(view.id)}
+            onClick={() => { setActiveView(view.id); events.arenaInsightView(view.id) }}
             className={`flex-1 flex items-center justify-center gap-1 px-1 py-1.5 rounded text-[0.6rem] font-bold transition-all ${
               activeView === view.id
                 ? 'bg-primary text-on-primary'
