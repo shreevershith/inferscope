@@ -199,15 +199,56 @@ A persistent banner below the header showing:
 
 ---
 
-### Welcome Tour (First Visit)
+### Contextual Workflow Tour
 
-New users see a 4-step onboarding modal that auto-previews each tab as they advance:
-1. **Model Arena** → switches to Tab 1
-2. **Cost Calculator** → switches to Tab 2
-3. **Infra Explorer** → switches to Tab 3
-4. **AI Advisor** → final summary step
+Instead of a single onboarding modal that dumps everything on you at once, InferScope uses **section-scoped chapters** that fire the first time a user enters each part of the app. Each chapter is independently gated by its own localStorage flag.
 
-Gated by localStorage (`inferscope-tour-seen-v1`), so returning users aren't interrupted. "Skip tour" dismisses immediately.
+| Chapter | Auto-trigger | Steps | What it teaches |
+|---------|-------------|-------|-----------------|
+| **A — Arena Intro** | First app load | 7 | Welcome → tabs → leaderboard → filters → Value column → Compare → Arena Insight |
+| **B — Calculator** | First time on Cost Calculator tab | 3 | Inputs panel → metric cards → charts |
+| **C — Infra Explorer** | First time on Infra Explorer tab | 3 | Provider cards → GPU pricing → Compare column |
+| **D — AI Advisor** | First time advisor panel opens | 2 | Context badges → suggested questions input |
+
+**Spotlight-style UI** — on desktop, a gold ring highlights the exact element being explained with the rest of the page dimmed via a 9999px outer box-shadow trick (no SVG masks). The tooltip card auto-positions top / bottom / left / right relative to the target, clamped to the viewport.
+
+**Mobile bottom sheet** — on screens <768px, the spotlight stays on the element but the tooltip docks to the bottom of the screen so it never overlaps. Targets auto-scroll to `start` alignment so they stay visible above the sheet.
+
+**Keyboard nav** — `Esc` skips, `←` / `→` step backward/forward.
+
+**Re-trigger anytime** — Header has a "Take Tour" dropdown (graduation-cap icon) that lets users replay any chapter on demand. The dropdown auto-navigates to the right tab (and opens the advisor panel for chapter D) before starting.
+
+---
+
+### Analytics & Engagement Tracking
+
+InferScope ships with **Google Analytics 4** wired up for meaningful engagement tracking — not just page views.
+
+**Privacy-first loading:**
+- GA script does **not** load until the user accepts the cookie consent banner on first visit.
+- Before consent, custom events are queued in memory and flushed on grant.
+- Decline → GA never loads for that session, queued events are dropped.
+- No ID configured (or placeholder) → the entire analytics module silently no-ops. Safe for dev.
+- `anonymize_ip` enabled; event param values are sanitized to GA4 length limits (key ≤40 chars, string value ≤100 chars).
+
+**Events tracked** (beyond automatic `page_view`):
+
+| Category | Events | Params |
+|----------|--------|--------|
+| Navigation | `tab_switch`, `theme_toggle` | `tab_name`, `mode` |
+| Model Arena | `model_select`, `filter_apply`, `compare_open`, `arena_insight_view`, `calculate_from_arena` | `model_id`, `model_name`, `filter_type`, `value`, `view`, `model_count` |
+| Cost Calculator | `calculator_scenario_change` | `scenario` |
+| Infra Explorer | `provider_estimate_cost`, `gpu_compare_open` | `provider`, `gpu_count` |
+| AI Advisor | `advisor_open`, `advisor_message_sent`, `advisor_suggested_click` | `message_length`, `question` |
+| Tour | `tour_chapter_start` (auto/manual), `tour_chapter_complete`, `tour_chapter_skip` | `chapter`, `source`, `step_index` |
+
+**Consent banner** — Appears 1.5s after first paint (so it doesn't race the tour), bottom-right on desktop, bottom-full-width on mobile. Preference stored in `localStorage` (`inferscope-analytics-consent`). Returning users don't see it again.
+
+**To activate in your own deploy:**
+1. Create a GA4 property at [analytics.google.com](https://analytics.google.com)
+2. Copy the measurement ID (format `G-XXXXXXXXXX`)
+3. Add it to `.env` as `VITE_GA_MEASUREMENT_ID=G-YOUR-ID`
+4. For production: add the same variable to Vercel → Settings → Environment Variables
 
 ---
 
@@ -295,6 +336,7 @@ Priority: Arena ELO > OpenRouter pricing > bundled seed defaults.
 | UI Components | Headless UI | Accessible tab management |
 | Icons | Material Symbols Outlined | Consistent icon set |
 | AI Backend | Groq API (Llama 3.3 70B) | Free tier, ultra-fast inference, OpenAI-compatible |
+| Analytics | Google Analytics 4 (gtag.js) | Consent-gated, custom event tracking, zero-cost |
 | Deployment | Vercel | Serverless functions for API proxy |
 
 ---
@@ -335,11 +377,23 @@ npm install
 
 ### Environment Setup
 
-Create a `.env.local` file in the project root:
+Copy the template to `.env` (gitignored) and fill in your real values:
+
+```bash
+cp .env.local.example .env
+```
+
+Then edit `.env`:
 
 ```
-GROQ_API_KEY=your_groq_api_key_here
+# Required for AI Advisor. Free at https://console.groq.com
+GROQ_API_KEY=gsk_your_real_key_here
+
+# Optional — enables Google Analytics. Leave as placeholder to disable.
+VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
+
+> **Note on env file precedence:** Vite loads `.env.local` > `.env`. The repo only commits `.env.local.example` (the template). Your real `.env` stays on your machine only. If you need a local-only override, create `.env.local` — it's gitignored by the `*.local` pattern.
 
 ### Running Locally
 
@@ -364,9 +418,11 @@ To deploy your own:
 
 1. Push to GitHub
 2. Import the repo on [vercel.com](https://vercel.com)
-3. Add `GROQ_API_KEY` as an environment variable in project settings
-4. (Optional) Set `ALLOWED_ORIGIN` to your domain for CORS hardening
-5. Deploy
+3. Add environment variables in project Settings → Environment Variables (Production scope):
+   - `GROQ_API_KEY` — your Groq API key (required for AI Advisor)
+   - `VITE_GA_MEASUREMENT_ID` — your GA4 measurement ID (optional, enables analytics)
+   - `ALLOWED_ORIGIN` — your production domain (optional, hardens CORS)
+4. Deploy
 
 The `api/ai-chat.js` serverless function handles AI requests in production with built-in rate limiting (10 req/min per IP) and prompt-injection-safe context sanitization.
 
@@ -391,13 +447,16 @@ inferscope/
 │   │   ├── arenaClient.js       # LMSYS Arena leaderboard fetch + normalize
 │   │   ├── dataNormalizer.js    # Merge multi-source data into unified Model shape
 │   │   ├── aiClient.js          # POST /api/ai-chat wrapper with sanitization
-│   │   └── timeUtils.js         # Relative timestamp formatting (e.g., "2m ago")
+│   │   ├── timeUtils.js         # Relative timestamp formatting (e.g., "2m ago")
+│   │   ├── analytics.js         # GA4 integration + custom event helpers (consent-gated)
+│   │   └── tourTriggers.js      # Per-chapter localStorage flags + auto-trigger logic
 │   ├── hooks/
 │   │   ├── useModelData.js      # SWR hook — fetches + merges all model data
 │   │   └── useCostCalculator.js # useMemo — reactive cost computation
 │   ├── components/
 │   │   ├── HeroBanner.jsx       # Live stats banner (models tracked, providers, last refresh)
-│   │   ├── WelcomeTour.jsx      # 4-step first-visit onboarding modal
+│   │   ├── WelcomeTour.jsx      # Contextual 4-chapter workflow tour with spotlight engine
+│   │   ├── ConsentBanner.jsx    # Cookie consent banner (gates GA loading)
 │   │   ├── Footer.jsx           # Data source attribution footer
 │   │   ├── ui/
 │   │   │   ├── MetricCard.jsx   # KPI card with tooltip, trend chips, source tags
@@ -427,7 +486,7 @@ inferscope/
 
 ## Security
 
-- **API key isolation** — `GROQ_API_KEY` lives in `.env.local` (gitignored), never in client-side code. Proxied through Vercel serverless / Vite dev middleware.
+- **API key isolation** — `GROQ_API_KEY` lives in `.env` (gitignored), never in client-side code. Proxied through Vercel serverless / Vite dev middleware.
 - **Prompt injection defense** — All `context` fields (top models, calculator scenario, selected provider) are sanitized server-side before being interpolated into the system prompt. Patterns like "ignore previous instructions" are redacted, non-printable chars stripped, lengths capped per field. Applied in both `api/ai-chat.js` and the Vite dev proxy.
 - **Input sanitization** — User messages stripped of non-printable characters, capped at 500 chars (both client and server).
 - **Rate limiting** — In-memory IP-based rate limiter: 10 req/min in production, 30 req/min in dev. Returns `429` with a user-safe retry message.
@@ -437,6 +496,7 @@ inferscope/
 - **Response validation** — External API responses (OpenRouter, LMSYS Arena) are shape-checked and timeouts enforced via `AbortController` (10s). Malformed individual entries are dropped rather than crashing the whole batch.
 - **NaN firewall** — All numeric calculator inputs are coerced to finite non-negative numbers before arithmetic. `cachingHitRate` is clamped to [0, 100]. Guarantees no `NaN` or `Infinity` leaks into the UI.
 - **Error boundary** — App-level React error boundary catches render crashes with recovery UI.
+- **Consent-gated analytics** — Google Analytics script is never injected until the user explicitly accepts the consent banner. No cookies set before consent. Declining preserves zero tracking for the session.
 
 ## License
 
