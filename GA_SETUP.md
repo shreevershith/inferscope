@@ -161,14 +161,15 @@ Three numbers matter most for a portfolio project:
 | `page_view` | (automatic) | Any route load |
 | `tab_switch` | `tab_name` | User clicks a top nav tab |
 | `theme_toggle` | `mode` | User flips dark/light mode |
-| `model_select` | `model_id`, `model_name`, `source` | User clicks CALCULATE on an Arena row |
-| `filter_apply` | `filter_type`, `value` | User changes provider/license/focus-task filter |
+| `model_select` | `model_id`, `model_name`, `source` | User clicks CALCULATE on an Arena row, or "USE THIS MODEL" on a Workload Recommendation card. `source` distinguishes the path (`arena_table_calculate`, `workload_recommendation`) |
+| `filter_apply` | `filter_type`, `value` | User changes provider/license/focus-task filter. Also fires with `filter_type: 'csv_export'` and `value: <row count>` when the user exports the filtered table |
 | `compare_open` | `model_count` | User opens the model compare drawer |
-| `arena_insight_view` | `view` | User switches ELO/Price/Speed/Value view |
+| `arena_insight_view` | `view` | User switches ELO/Price/Context/Value view |
 | `calculate_from_arena` | `model_name` | User goes from Arena → Calculator via CALCULATE button |
-| `calculator_scenario_change` | `scenario` | User toggles Low/Base/High traffic profile |
+| `calculator_scenario_change` | `scenario` | User toggles Low/Base/High/Spike traffic profile |
 | `provider_estimate_cost` | `provider` | User clicks ESTIMATE COST on a provider card |
 | `gpu_compare_open` | `gpu_count` | User opens the GPU compare drawer |
+| `external_link_click` | `url`, `context` | User clicks an outbound link (e.g. provider homepage `open_in_new` icon) |
 | `advisor_open` | — | User opens the AI Advisor panel |
 | `advisor_message_sent` | `message_length` | User types + sends a custom question |
 | `advisor_suggested_click` | `question` | User clicks a pre-written suggestion chip |
