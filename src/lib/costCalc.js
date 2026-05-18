@@ -33,8 +33,12 @@ export function calculateCosts(inputs = {}) {
     ? safeNum(inputs.cachedInputPrice)
     : inputPricePerMToken * 0.1
 
+  // Per-user override wins over the default constant.
+  const override = inputs.scenarioOverrides?.[inputs.scenario]
   const scenarioCfg = SCENARIO_MULTIPLIERS[inputs.scenario]
-  const multiplier = scenarioCfg ? safeNum(scenarioCfg.requestMultiplier, 1.0) : 1.0
+  const multiplier = Number.isFinite(override) && override >= 0
+    ? safeNum(override, 1.0)
+    : (scenarioCfg ? safeNum(scenarioCfg.requestMultiplier, 1.0) : 1.0)
   const effectiveRequestsPerDay = requestsPerDay * multiplier
   const requestsPerMonth = effectiveRequestsPerDay * 30
 
@@ -86,15 +90,30 @@ export function calculateCosts(inputs = {}) {
 }
 
 /**
- * Generate cost-vs-volume curve data
+ * Generate log-spaced volume sweep points centered on the user's current
+ * requestsPerDay. Spans ~2 orders of magnitude below and ~1.5 above so the
+ * user's input sits roughly in the middle of the chart.
+ */
+export function getAdaptiveVolumeTicks(requestsPerDay) {
+  const center = Math.max(10, safeNum(requestsPerDay, 1000))
+  const factors = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30]
+  const raw = factors.map(f => Math.max(10, Math.round(center * f)))
+  // De-duplicate (small inputs collapse low end) and sort
+  return [...new Set(raw)].sort((a, b) => a - b)
+}
+
+/**
+ * Generate cost-vs-volume curve data adapted to the user's input.
  */
 export function generateVolumeCurve(inputs) {
-  const volumes = [100, 500, 1000, 5000, 10000, 25000, 50000, 100000]
+  const volumes = getAdaptiveVolumeTicks(inputs?.requestsPerDay)
   return volumes.map(rpd => {
     const costs = calculateCosts({ ...inputs, requestsPerDay: rpd, scenario: 'base' })
     return {
       requestsPerDay: rpd,
-      label: rpd >= 1000 ? `${(rpd / 1000).toFixed(0)}K` : rpd.toString(),
+      label: rpd >= 1_000_000 ? `${(rpd / 1_000_000).toFixed(1)}M`
+        : rpd >= 1000 ? `${(rpd / 1000).toFixed(rpd >= 10000 ? 0 : 1)}K`
+        : rpd.toString(),
       monthlyCost: costs.monthlyCost,
     }
   })
