@@ -1,15 +1,8 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import useDashboardStore from '../../store/dashboardStore'
 import { sendChatMessage } from '../../lib/aiClient'
-import { events } from '../../lib/analytics'
-
-const SUGGESTED_QUESTIONS = [
-  'Compare Claude vs GPT for code',
-  'Best model under $500/mo',
-  'RAG chatbot setup costs',
-  'Cheapest model for document extraction',
-  'When should I use caching?',
-]
+import { events } from '../../lib/telemetry'
+import { buildSuggestedQuestions } from '../../lib/advisorPrompts'
 
 export default function AdvisorPanel() {
   const setAdvisorPanelOpen = useDashboardStore(s => s.setAdvisorPanelOpen)
@@ -25,6 +18,12 @@ export default function AdvisorPanel() {
   const messagesEndRef = useRef(null)
   const prevMsgCount = useRef(chatMessages.length)
 
+  // Personalized suggestions — recompute when model list or calc state change.
+  const suggestedQuestions = useMemo(
+    () => buildSuggestedQuestions({ models: modelList, calculatorInputs }),
+    [modelList, calculatorInputs]
+  )
+
   useEffect(() => {
     // Only scroll when a new message is appended (not on every render)
     if (chatMessages.length > prevMsgCount.current) {
@@ -38,7 +37,7 @@ export default function AdvisorPanel() {
     if (!message || isChatLoading) return
 
     // Track which path user took: suggested chip vs typed
-    if (text && SUGGESTED_QUESTIONS.includes(text)) {
+    if (text && suggestedQuestions.includes(text)) {
       events.advisorSuggestedClick(text)
     } else {
       events.advisorMessageSent(message.length)
@@ -54,14 +53,54 @@ export default function AdvisorPanel() {
       addChatMessage({ role: 'assistant', text: response })
     } catch (err) {
       console.error('Advisor error:', err)
-      const errorMsg = err.message?.includes('fetch')
-        ? 'Network connection error. Please check your connection.'
-        : 'Unable to respond right now. Please try again.'
+      // AiClientError carries .source so we can show a targeted message
+      // instead of a generic "something failed". Falls back gracefully when
+      // the error is some other shape (e.g. thrown by React internals).
+      let errorMsg
+      switch (err?.source) {
+        case 'timeout':
+          errorMsg = 'The AI took too long to respond. Try a shorter question.'
+          break
+        case 'network':
+          errorMsg = 'Network unavailable. Check your connection and try again.'
+          break
+        case 'rate-limited':
+          errorMsg = 'AI service is busy. Please wait a moment and retry.'
+          break
+        case 'empty':
+        case 'parse':
+          errorMsg = 'AI service returned an unexpected response. Try rephrasing.'
+          break
+        case 'server':
+          errorMsg = err.message || 'AI service is temporarily unavailable.'
+          break
+        default:
+          errorMsg = 'Unable to respond right now. Please try again.'
+      }
       addChatMessage({ role: 'assistant', text: errorMsg, isError: true })
     } finally {
       setChatLoading(false)
     }
   }
+
+  // Live monthly-cost projection for the selected model, mirroring the same
+  // math the Cost Calculator uses. Shown in the context feed so the user can
+  // see what the Advisor sees at a glance.
+  const monthlyCostLabel = useMemo(() => {
+    if (!calculatorInputs.selectedModelId) return null
+    const inP = calculatorInputs.inputPricePerMToken || 0
+    const outP = calculatorInputs.outputPricePerMToken || 0
+    const cachedP = calculatorInputs.cachedInputPrice || 0
+    const reqMo = (calculatorInputs.requestsPerDay || 0) * 30
+    const inMo = reqMo * (calculatorInputs.inputTokens || 0)
+    const outMo = reqMo * (calculatorInputs.outputTokens || 0)
+    const cacheRate = (calculatorInputs.cachingHitRate || 0) / 100
+    const inputCost = (inMo / 1_000_000) * (inP * (1 - cacheRate) + cachedP * cacheRate)
+    const outputCost = (outMo / 1_000_000) * outP
+    const monthly = inputCost + outputCost
+    if (monthly <= 0) return null
+    return monthly >= 1000 ? `$${(monthly / 1000).toFixed(1)}K/mo` : `$${monthly.toFixed(2)}/mo`
+  }, [calculatorInputs])
 
   // Context cards: what the AI actually has access to
   const topModel = modelList?.[0]
@@ -69,8 +108,16 @@ export default function AdvisorPanel() {
     calculatorInputs.selectedModelName && {
       label: 'Selected Model',
       value: calculatorInputs.selectedModelName,
-      sub: `$${calculatorInputs.inputPricePerMToken?.toFixed(2) || '—'}/M input`,
+      sub: calculatorInputs.inputPricePerMToken > 0
+        ? `$${calculatorInputs.inputPricePerMToken.toFixed(2)}/M input`
+        : 'Free or variable',
       icon: 'smart_toy',
+    },
+    monthlyCostLabel && {
+      label: 'Projected Cost',
+      value: monthlyCostLabel,
+      sub: `at ${calculatorInputs.cachingHitRate || 0}% cache hit`,
+      icon: 'payments',
     },
     {
       label: 'Request Volume',
@@ -79,12 +126,6 @@ export default function AdvisorPanel() {
         : `${calculatorInputs.requestsPerDay} / day`,
       sub: `${calculatorInputs.scenario || 'base'} scenario`,
       icon: 'speed',
-    },
-    {
-      label: 'Cache Hit Rate',
-      value: `${calculatorInputs.cachingHitRate || 0}%`,
-      sub: 'of input tokens',
-      icon: 'memory',
     },
     topModel && {
       label: 'Top Ranked',
@@ -129,9 +170,9 @@ export default function AdvisorPanel() {
               {chatMessages.length === 0 && (
                 <div className="text-center py-12">
                   <span className="material-symbols-outlined text-primary/40 text-5xl mb-4 block">psychology</span>
-                  <p className="text-sm dark:text-slate-300 text-slate-700 font-medium">Ask about your investment</p>
+                  <p className="text-sm dark:text-slate-300 text-slate-700 font-medium">Ask about your inference workload</p>
                   <p className="text-xs dark:text-slate-400 text-slate-500 mt-1 max-w-xs mx-auto">
-                    I can see your selected model, calculator scenario, and live pricing. Try a suggested question →
+                    I can see your selected model, traffic, cache hit rate, projected cost, and the live Arena leaderboard. Try a suggested question →
                   </p>
                 </div>
               )}
@@ -223,9 +264,14 @@ export default function AdvisorPanel() {
               </div>
 
               <div data-tour="advisor-input">
-                <p className="label-micro mb-3">Suggested Questions</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="label-micro">Suggested Questions</p>
+                  <span className="text-[0.55rem] font-medium dark:text-slate-500 text-slate-500 tracking-wider uppercase" title="Suggestions update based on your selected model and calculator state">
+                    Personalized
+                  </span>
+                </div>
                 <div className="space-y-2">
-                  {SUGGESTED_QUESTIONS.map(q => (
+                  {suggestedQuestions.map(q => (
                     <button
                       key={q}
                       onClick={() => handleSend(q)}
