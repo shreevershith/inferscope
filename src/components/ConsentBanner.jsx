@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { consentStatus, grantConsent, declineConsent } from '../lib/analytics'
+import { consentStatus, grantConsent, declineConsent } from '../lib/telemetry'
 
 /**
  * Minimal cookie consent banner (bottom of screen).

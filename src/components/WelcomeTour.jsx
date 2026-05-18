@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import useDashboardStore from '../store/dashboardStore'
 import { markSeen } from '../lib/tourTriggers'
-import { events } from '../lib/analytics'
+import { events } from '../lib/telemetry'
 
 // ─── Chapter config ────────────────────────────────────────────────────────
 // Each step:
@@ -156,52 +156,79 @@ const CHAPTERS = {
 }
 
 // ─── Spotlight geometry hook ───────────────────────────────────────────────
+//
+// Tracks the target element's bounding rect across smooth-scroll, resize, and
+// late-mount cases. Uses a single rAF poll loop that:
+//   - measures on every frame for up to ~1.2s after selector change
+//   - emits setRect only when the rect actually moved (avoids re-render churn)
+//   - self-terminates after 5 stable frames in a row (~83ms still)
+//   - is joined by scroll / resize / ResizeObserver triggers that simply
+//     restart the loop instead of firing their own measure cycle
+//
+// Single source of measurement → no thrashing, one rect update per frame max.
 function useTargetRect(selector) {
   const [rect, setRect] = useState(null)
 
   useLayoutEffect(() => {
     if (!selector) { setRect(null); return }
 
+    const MAX_DURATION_MS = 1200
+    const STABLE_FRAMES_TO_STOP = 5
+
     let rafId = null
+    let startTime = 0
+    let stableFrames = 0
+    let prevRect = null
 
-    const measure = () => {
+    const rectEqual = (a, b) =>
+      a && b && a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height
+
+    const loop = (now) => {
       const el = document.querySelector(selector)
-      if (!el) { setRect(null); return }
-      const r = el.getBoundingClientRect()
-      setRect({
-        top: r.top,
-        left: r.left,
-        width: r.width,
-        height: r.height,
-      })
+      if (!el) {
+        if (prevRect !== null) setRect(null)
+        prevRect = null
+      } else {
+        const r = el.getBoundingClientRect()
+        const next = { top: r.top, left: r.left, width: r.width, height: r.height }
+        if (rectEqual(next, prevRect)) {
+          stableFrames += 1
+        } else {
+          stableFrames = 0
+          setRect(next)
+          prevRect = next
+        }
+      }
+      const elapsed = now - startTime
+      if (stableFrames >= STABLE_FRAMES_TO_STOP || elapsed >= MAX_DURATION_MS) {
+        rafId = null
+        return
+      }
+      rafId = requestAnimationFrame(loop)
     }
 
-    // Measure now and keep up to date with scroll/resize
-    measure()
-
-    const rafMeasure = () => {
+    const restartLoop = () => {
       if (rafId) cancelAnimationFrame(rafId)
-      rafId = requestAnimationFrame(measure)
+      stableFrames = 0
+      startTime = performance.now()
+      rafId = requestAnimationFrame(loop)
     }
 
-    // Poll for ~1.2s after selector change so we catch smooth-scroll completion
-    // (scroll events fire throughout, but this is a belt-and-suspenders approach
-    // for cases where the target element is lazily rendered or scroll is instant)
-    const pollInterval = setInterval(measure, 100)
-    const pollTimeout = setTimeout(() => clearInterval(pollInterval), 1200)
+    // Initial run
+    restartLoop()
 
-    window.addEventListener('scroll', rafMeasure, true)
-    window.addEventListener('resize', rafMeasure)
-    const ro = new ResizeObserver(rafMeasure)
+    // External triggers — scroll, resize, and target ResizeObserver all just
+    // restart the poll loop. No separate measure cycles.
+    window.addEventListener('scroll', restartLoop, true)
+    window.addEventListener('resize', restartLoop)
+    const ro = new ResizeObserver(restartLoop)
     const el = document.querySelector(selector)
     if (el) ro.observe(el)
 
     return () => {
-      clearInterval(pollInterval)
-      clearTimeout(pollTimeout)
       if (rafId) cancelAnimationFrame(rafId)
-      window.removeEventListener('scroll', rafMeasure, true)
-      window.removeEventListener('resize', rafMeasure)
+      window.removeEventListener('scroll', restartLoop, true)
+      window.removeEventListener('resize', restartLoop)
       ro.disconnect()
     }
   }, [selector])

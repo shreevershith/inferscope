@@ -1,16 +1,28 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import useDashboardStore from './store/dashboardStore'
 import ErrorBoundary from './components/ui/ErrorBoundary'
-import AdvisorPanel from './components/advisor/AdvisorPanel'
 import HeroBanner from './components/HeroBanner'
+import StaleCacheBanner from './components/StaleCacheBanner'
 import WelcomeTour from './components/WelcomeTour'
 import Footer from './components/Footer'
-import ModelArena from './tabs/ModelArena'
-import CostCalculator from './tabs/CostCalculator'
-import InfraExplorer from './tabs/InfraExplorer'
 import { pickChapterToAutoStart } from './lib/tourTriggers'
-import { initAnalytics, events } from './lib/analytics'
+import { initAnalytics, events } from './lib/telemetry'
 import ConsentBanner from './components/ConsentBanner'
+
+// Code-split tabs and the Advisor — keep initial bundle small.
+// Each tab + the advisor panel are only fetched when the user opens them.
+const ModelArena     = lazy(() => import('./tabs/ModelArena'))
+const CostCalculator = lazy(() => import('./tabs/CostCalculator'))
+const InfraExplorer  = lazy(() => import('./tabs/InfraExplorer'))
+const AdvisorPanel   = lazy(() => import('./components/advisor/AdvisorPanel'))
+
+function TabFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[400px]" role="status" aria-label="Loading tab">
+      <div className="animate-pulse text-slate-500 text-sm font-medium">Loading…</div>
+    </div>
+  )
+}
 
 const TABS = [
   { name: 'Model Arena', icon: 'leaderboard' },
@@ -204,17 +216,25 @@ export default function App() {
         </div>
       </header>
 
+      {/* Stale-cache warning — only renders when both fetches failed AND we
+          have prior cache to fall back on. Quiet by default. */}
+      <StaleCacheBanner />
+
       {/* Hero Banner */}
       <HeroBanner />
 
-      {/* Main Content */}
+      {/* Main Content. The `key` on ErrorBoundary forces a fresh boundary per
+          tab so a crash in one tab doesn't keep the error UI showing after
+          the user switches to another. */}
       <main className="max-w-[1920px] mx-auto px-4 md:px-8 py-8">
-        <ErrorBoundary>
-          <div key={activeTab} className="animate-fadeIn">
-            {activeTab === 0 && <ModelArena />}
-            {activeTab === 1 && <CostCalculator />}
-            {activeTab === 2 && <InfraExplorer />}
-          </div>
+        <ErrorBoundary key={`tab-${activeTab}`}>
+          <Suspense fallback={<TabFallback />}>
+            <div className="animate-fadeIn">
+              {activeTab === 0 && <ModelArena />}
+              {activeTab === 1 && <CostCalculator />}
+              {activeTab === 2 && <InfraExplorer />}
+            </div>
+          </Suspense>
         </ErrorBoundary>
       </main>
 
@@ -230,8 +250,16 @@ export default function App() {
         <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
       </button>
 
-      {/* AI Advisor Panel: only mount when open to avoid 8 idle subscriptions */}
-      {isPanelOpen && <AdvisorPanel />}
+      {/* AI Advisor Panel: only mount when open to avoid 8 idle subscriptions.
+          Wrapped in ErrorBoundary so a panel crash (chunk load failure, render
+          bug) doesn't take down the whole app. */}
+      {isPanelOpen && (
+        <ErrorBoundary>
+          <Suspense fallback={null}>
+            <AdvisorPanel />
+          </Suspense>
+        </ErrorBoundary>
+      )}
 
       {/* Contextual workflow tour (auto-fires per-section on first visit) */}
       <WelcomeTour />
