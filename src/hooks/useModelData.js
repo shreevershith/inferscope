@@ -1,5 +1,5 @@
 import useSWR from 'swr'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { fetchOpenRouterModels, normalizeOpenRouterModel } from '../lib/openRouterClient'
 import { fetchArenaLeaderboard, normalizeArenaModel } from '../lib/arenaClient'
 import { mergeModelData } from '../lib/dataNormalizer'
@@ -82,14 +82,17 @@ export function useModelData() {
   const setModelsLoading = useDashboardStore(s => s.setModelsLoading)
   const modelList = useDashboardStore(s => s.modelList)
 
-  // Hydrate from disk cache before the first network round-trip lands.
-  // Hooks into useSWR's `fallbackData` so the UI never flashes empty.
-  const cached = typeof window !== 'undefined' ? readCache() : null
-  const fallback = cached
-    ? { models: cached.models, sourceErrors: [], fetchedAt: cached.fetchedAt, fromCache: true }
-    : modelList.length > 0
-      ? { models: modelList, sourceErrors: [] }
+  // Hydrate from disk cache once on mount so SWR never flashes empty.
+  // useMemo([]) ensures readCache() + the wrapper object are created once —
+  // without this, every render builds a new object, SWR returns it as `data`
+  // (fetch still in-flight), the effect calls setModelList, Zustand re-renders,
+  // and the cycle repeats → React error #185 (max update depth).
+  const fallback = useMemo(() => {
+    const cached = typeof window !== 'undefined' ? readCache() : null
+    return cached
+      ? { models: cached.models, sourceErrors: [], fetchedAt: cached.fetchedAt, fromCache: true }
       : undefined
+  }, [])
 
   const { data, error, isLoading } = useSWR('model-data', fetchAllModelData, {
     revalidateOnFocus: false,
