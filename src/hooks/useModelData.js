@@ -1,9 +1,42 @@
 import useSWR from 'swr'
+import { useEffect } from 'react'
 import { fetchOpenRouterModels, normalizeOpenRouterModel } from '../lib/openRouterClient'
 import { fetchArenaLeaderboard, normalizeArenaModel } from '../lib/arenaClient'
 import { mergeModelData } from '../lib/dataNormalizer'
 import useDashboardStore from '../store/dashboardStore'
-import { useEffect } from 'react'
+
+// localStorage cache — keeps the last-known-good merged result so a returning
+// visitor sees real data instantly while SWR revalidates in the background.
+// Bump the version suffix whenever the merged Model shape changes so old
+// caches with stale data structures get invalidated automatically.
+//   v1 → v2: provider prefix stripped from `name`, `isVariablePrice` added,
+//            quality formula band widened
+//   v2 → v3: description field added, taskStrengths now description-aware,
+//            Arena ELO z-score-normalized across boards, provider names
+//            prettified
+const CACHE_KEY = 'inferscope-models-cache-v3'
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000  // 24h — older than this, treat as stale
+
+function readCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.models || !Array.isArray(parsed.models) || !parsed.fetchedAt) return null
+    if (Date.now() - new Date(parsed.fetchedAt).getTime() > CACHE_TTL_MS) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeCache(payload) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(payload))
+  } catch {
+    // localStorage may be unavailable (Safari private mode, quota exceeded) — non-fatal
+  }
+}
 
 const fetchAllModelData = async () => {
   const [openRouterRaw, arenaRaw] = await Promise.allSettled([
@@ -21,18 +54,27 @@ const fetchAllModelData = async () => {
     sourceErrors.push('Arena')
   }
 
-  // Per-item normalization with filter: drops malformed entries instead of failing entire batch
+  // Per-item normalization with filter: drops malformed entries instead of failing entire batch.
+  // No artificial top-N cap on OpenRouter — the full live catalog (~300+ models) is merged so
+  // Arena ELO can attach to any model regardless of catalog position.
   const openRouterModels = openRouterRaw.status === 'fulfilled'
-    ? openRouterRaw.value.slice(0, 100).map(normalizeOpenRouterModel).filter(Boolean)
+    ? openRouterRaw.value.map(normalizeOpenRouterModel).filter(Boolean)
     : []
 
   const arenaModels = arenaRaw.status === 'fulfilled'
-    ? arenaRaw.value.slice(0, 50).map(normalizeArenaModel).filter(Boolean)
+    ? arenaRaw.value.map(normalizeArenaModel).filter(Boolean)
     : []
 
   const merged = mergeModelData({ arenaModels, openRouterModels })
+  const fetchedAt = new Date().toISOString()
+  const payload = { models: merged, sourceErrors, fetchedAt }
 
-  return { models: merged, sourceErrors }
+  // Cache only if we got real data from at least one source
+  if (merged.length > 0 && sourceErrors.length < 2) {
+    writeCache(payload)
+  }
+
+  return payload
 }
 
 export function useModelData() {
@@ -40,11 +82,20 @@ export function useModelData() {
   const setModelsLoading = useDashboardStore(s => s.setModelsLoading)
   const modelList = useDashboardStore(s => s.modelList)
 
+  // Hydrate from disk cache before the first network round-trip lands.
+  // Hooks into useSWR's `fallbackData` so the UI never flashes empty.
+  const cached = typeof window !== 'undefined' ? readCache() : null
+  const fallback = cached
+    ? { models: cached.models, sourceErrors: [], fetchedAt: cached.fetchedAt, fromCache: true }
+    : modelList.length > 0
+      ? { models: modelList, sourceErrors: [] }
+      : undefined
+
   const { data, error, isLoading } = useSWR('model-data', fetchAllModelData, {
     revalidateOnFocus: false,
     refreshInterval: 60 * 60 * 1000, // 1 hour
     dedupingInterval: 15 * 60 * 1000, // 15 min
-    fallbackData: modelList.length > 0 ? { models: modelList, sourceErrors: [] } : undefined,
+    fallbackData: fallback,
   })
 
   useEffect(() => {
@@ -53,7 +104,7 @@ export function useModelData() {
 
   useEffect(() => {
     if (data?.models && data.models.length > 0) {
-      setModelList(data.models)
+      setModelList(data.models, data.fetchedAt)
     }
   }, [data, setModelList])
 
@@ -67,6 +118,8 @@ export function useModelData() {
     isLoading,
     error,
     sourceErrors,
+    fetchedAt: data?.fetchedAt,
+    fromCache: !!data?.fromCache,
     hasPartialFailure,
     hasTotalFailure,
   }

@@ -6,7 +6,9 @@ export default function Footer() {
           Data ·{' '}
           <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">OpenRouter</a>
           {' · '}
-          <a href="https://lmsys.org/chatbot-arena" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">LMSYS Arena</a>
+          <a href="https://arena.ai" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Arena Leaderboards</a>
+          {' · '}
+          <a href="https://vast.ai" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Vast.ai</a>
           {' · '}
           <a href="https://groq.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Groq</a>
         </p>

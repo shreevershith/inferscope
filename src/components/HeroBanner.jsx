@@ -1,14 +1,16 @@
+import { useMemo } from 'react'
 import useDashboardStore from '../store/dashboardStore'
 import { formatRelativeTime } from '../lib/timeUtils'
-import { PROVIDERS } from '../constants/providerMetadata'
+import { deriveProviders } from '../constants/providerMetadata'
 
 export default function HeroBanner() {
   const modelList = useDashboardStore(s => s.modelList)
   const modelsLastFetched = useDashboardStore(s => s.modelsLastFetched)
+  const providerCount = useMemo(() => deriveProviders(modelList).length, [modelList])
 
   const stats = [
     { label: 'Models Tracked', value: modelList?.length || '—', icon: 'monitoring' },
-    { label: 'Providers', value: PROVIDERS.length, icon: 'dns' },
+    { label: 'Providers', value: providerCount || '—', icon: 'dns' },
     { label: 'Last Refreshed', value: formatRelativeTime(modelsLastFetched), icon: 'update' },
   ]
 

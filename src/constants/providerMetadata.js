@@ -1,165 +1,115 @@
-export const PROVIDERS = [
-  {
-    id: 'together-ai',
-    name: 'Together AI',
-    icon: 'hub',
-    models: 200,
-    priceRange: '$0.03 - $4.00',
-    speedTier: 'Fast',
-    description: 'Open-source model hosting with competitive pricing',
-    url: 'https://together.ai',
-  },
-  {
-    id: 'groq',
-    name: 'Groq',
-    icon: 'bolt',
-    models: 25,
-    priceRange: '$0.06 - $1.50',
-    speedTier: 'Ultra-fast',
-    description: 'LPU-powered inference with industry-leading latency',
-    url: 'https://groq.com',
-  },
-  {
-    id: 'aws-bedrock',
-    name: 'AWS Bedrock',
-    icon: 'cloud',
-    models: 40,
-    priceRange: '$0.25 - $15.00',
-    speedTier: 'Standard',
-    description: 'Enterprise-grade managed AI with AWS integration',
-    url: 'https://aws.amazon.com/bedrock',
-  },
-  {
-    id: 'replicate',
-    name: 'Replicate',
-    icon: 'replay',
-    models: 350,
-    priceRange: '$0.05 - $3.50',
-    speedTier: 'Fast',
-    description: 'Run open-source models with simple API',
-    url: 'https://replicate.com',
-  },
-  {
-    id: 'openrouter',
-    name: 'OpenRouter',
-    icon: 'route',
-    models: 300,
-    priceRange: '$0 - $60.00',
-    speedTier: 'Varies',
-    description: 'Unified API across 50+ providers, best price routing',
-    url: 'https://openrouter.ai',
-  },
-  {
-    id: 'fireworks-ai',
-    name: 'Fireworks AI',
-    icon: 'local_fire_department',
-    models: 50,
-    priceRange: '$0.10 - $3.00',
-    speedTier: 'Fast',
-    description: 'Optimized inference for production workloads',
-    url: 'https://fireworks.ai',
-  },
-  {
-    id: 'anthropic',
-    name: 'Anthropic',
-    icon: 'psychology',
-    models: 8,
-    priceRange: '$0.25 - $15.00',
-    speedTier: 'Fast',
-    description: 'Claude models with industry-leading safety and reasoning',
-    url: 'https://anthropic.com',
-  },
-  {
-    id: 'openai',
-    name: 'OpenAI',
-    icon: 'auto_awesome',
-    models: 15,
-    priceRange: '$0.15 - $60.00',
-    speedTier: 'Fast',
-    description: 'GPT and o-series models for general and reasoning tasks',
-    url: 'https://openai.com',
-  },
-  {
-    id: 'google-vertex',
-    name: 'Google Vertex AI',
-    icon: 'language',
-    models: 12,
-    priceRange: '$0.10 - $10.00',
-    speedTier: 'Fast',
-    description: 'Gemini models with multimodal capabilities on GCP',
-    url: 'https://cloud.google.com/vertex-ai',
-  },
-  {
-    id: 'azure-openai',
-    name: 'Azure OpenAI',
-    icon: 'shield',
-    models: 12,
-    priceRange: '$0.50 - $60.00',
-    speedTier: 'Standard',
-    description: 'Enterprise OpenAI deployment with Azure compliance',
-    url: 'https://azure.microsoft.com/en-us/products/ai-services/openai-service',
-  },
-  {
-    id: 'huggingface',
-    name: 'Hugging Face',
-    icon: 'smart_toy',
-    models: 500,
-    priceRange: '$0 - $5.00',
-    speedTier: 'Varies',
-    description: 'Largest open-source model hub with serverless inference',
-    url: 'https://huggingface.co',
-  },
-  {
-    id: 'deepinfra',
-    name: 'DeepInfra',
-    icon: 'memory',
-    models: 80,
-    priceRange: '$0.04 - $2.00',
-    speedTier: 'Fast',
-    description: 'Low-cost inference with automatic model optimization',
-    url: 'https://deepinfra.com',
-  },
-  {
-    id: 'perplexity',
-    name: 'Perplexity',
-    icon: 'search',
-    models: 5,
-    priceRange: '$0.20 - $3.00',
-    speedTier: 'Fast',
-    description: 'Search-augmented models for real-time knowledge tasks',
-    url: 'https://perplexity.ai',
-  },
-  {
-    id: 'mistral',
-    name: 'Mistral AI',
-    icon: 'air',
-    models: 6,
-    priceRange: '$0.10 - $4.00',
-    speedTier: 'Ultra-fast',
-    description: 'European frontier models with efficient architectures',
-    url: 'https://mistral.ai',
-  },
-  {
-    id: 'cohere',
-    name: 'Cohere',
-    icon: 'dynamic_form',
-    models: 8,
-    priceRange: '$0.15 - $3.00',
-    speedTier: 'Fast',
-    description: 'Enterprise NLP with RAG-optimized embeddings and search',
-    url: 'https://cohere.com',
-  },
-]
+// UI-only visual mapping. Maps a canonical provider name → icon glyph and
+// homepage URL. These are not business/pricing data — they're UI assets that
+// don't change as providers evolve. All real data (model counts, price ranges,
+// model lists) is derived live from OpenRouter via deriveProviders().
+//
+// New providers fall back to a generic icon + null URL when not in this map.
 
-export const GPU_PRICING = [
-  { gpu: 'H200 141GB', vram: '141GB', vramNum: 141, provider: 'CoreWeave', pricePerHour: 4.25, throughput: '~1200 tok/s', throughputNum: 1200, tflops: 1979 },
-  { gpu: 'H100 80GB', vram: '80GB', vramNum: 80, provider: 'Lambda', pricePerHour: 2.49, throughput: '~800 tok/s', throughputNum: 800, tflops: 989 },
-  { gpu: 'H100 80GB', vram: '80GB', vramNum: 80, provider: 'RunPod', pricePerHour: 3.29, throughput: '~800 tok/s', throughputNum: 800, tflops: 989 },
-  { gpu: 'MI300X 192GB', vram: '192GB', vramNum: 192, provider: 'Lambda', pricePerHour: 3.99, throughput: '~900 tok/s', throughputNum: 900, tflops: 1307 },
-  { gpu: 'A100 80GB', vram: '80GB', vramNum: 80, provider: 'Lambda', pricePerHour: 1.29, throughput: '~400 tok/s', throughputNum: 400, tflops: 312 },
-  { gpu: 'A100 80GB', vram: '80GB', vramNum: 80, provider: 'AWS', pricePerHour: 3.06, throughput: '~400 tok/s', throughputNum: 400, tflops: 312 },
-  { gpu: 'L40S 48GB', vram: '48GB', vramNum: 48, provider: 'RunPod', pricePerHour: 0.74, throughput: '~250 tok/s', throughputNum: 250, tflops: 366 },
-  { gpu: 'A10G 24GB', vram: '24GB', vramNum: 24, provider: 'AWS', pricePerHour: 1.00, throughput: '~150 tok/s', throughputNum: 150, tflops: 125 },
-  { gpu: 'RTX 4090 24GB', vram: '24GB', vramNum: 24, provider: 'Vast.ai', pricePerHour: 0.44, throughput: '~180 tok/s', throughputNum: 180, tflops: 330 },
-  { gpu: 'L4 24GB', vram: '24GB', vramNum: 24, provider: 'GCP', pricePerHour: 0.60, throughput: '~120 tok/s', throughputNum: 120, tflops: 121 },
-]
+const PROVIDER_VISUALS = {
+  'OpenAI':       { icon: 'auto_awesome',         url: 'https://openai.com' },
+  'Anthropic':    { icon: 'psychology',           url: 'https://anthropic.com' },
+  'Google':       { icon: 'language',             url: 'https://ai.google' },
+  'Meta':         { icon: 'hub',                  url: 'https://ai.meta.com' },
+  'Mistral':      { icon: 'air',                  url: 'https://mistral.ai' },
+  'Cohere':       { icon: 'dynamic_form',         url: 'https://cohere.com' },
+  'xAI':          { icon: 'smart_toy',            url: 'https://x.ai' },
+  'Alibaba':      { icon: 'translate',            url: 'https://www.alibabacloud.com' },
+  'DeepSeek':     { icon: 'explore',              url: 'https://www.deepseek.com' },
+  'Perplexity':   { icon: 'search',               url: 'https://perplexity.ai' },
+  'NVIDIA':       { icon: 'memory',               url: 'https://www.nvidia.com' },
+  'Microsoft':    { icon: 'shield',               url: 'https://microsoft.com' },
+  'Amazon':       { icon: 'cloud',                url: 'https://aws.amazon.com' },
+  'Nous':         { icon: 'travel_explore',       url: 'https://nousresearch.com' },
+  'Together':     { icon: 'hub',                  url: 'https://together.ai' },
+  'Fireworks':    { icon: 'local_fire_department',url: 'https://fireworks.ai' },
+  'Groq':         { icon: 'bolt',                 url: 'https://groq.com' },
+  'HuggingFace':  { icon: 'smart_toy',            url: 'https://huggingface.co' },
+}
+
+export function getProviderVisual(name) {
+  return PROVIDER_VISUALS[name] || { icon: 'smart_toy', url: null }
+}
+
+/**
+ * Derive the live provider catalog from the merged model list (OpenRouter
+ * pricing + Arena ELO). Groups models by provider, computes price range,
+ * counts open vs proprietary models, and surfaces top ELO per provider.
+ */
+export function deriveProviders(modelList) {
+  if (!Array.isArray(modelList) || modelList.length === 0) return []
+
+  const groups = new Map()
+  for (const model of modelList) {
+    const provider = model.provider || 'Unknown'
+    if (!groups.has(provider)) {
+      groups.set(provider, {
+        name: provider,
+        models: 0,
+        openModels: 0,
+        freeModels: 0,
+        pricedModels: 0,
+        variableModels: 0,
+        inputPrices: [],
+        outputPrices: [],
+        topElo: 0,
+        topModelName: null,
+      })
+    }
+    const g = groups.get(provider)
+    g.models += 1
+    if (model.license === 'open') g.openModels += 1
+
+    const inP = model.inputPricePerMToken
+    const outP = model.outputPricePerMToken
+    if (model.isVariablePrice || inP == null || outP == null) {
+      g.variableModels += 1
+    } else if (inP === 0 && outP === 0) {
+      g.freeModels += 1
+    } else {
+      g.pricedModels += 1
+      if (Number.isFinite(inP) && inP > 0) g.inputPrices.push(inP)
+      if (Number.isFinite(outP) && outP > 0) g.outputPrices.push(outP)
+    }
+
+    if ((model.arenaElo || 0) > g.topElo) {
+      g.topElo = model.arenaElo
+      g.topModelName = model.name
+    }
+  }
+
+  return Array.from(groups.values())
+    .filter(g => g.models > 0)
+    .map(g => {
+      const visual = getProviderVisual(g.name)
+      const minInput = g.inputPrices.length ? Math.min(...g.inputPrices) : 0
+      const maxOutput = g.outputPrices.length ? Math.max(...g.outputPrices) : 0
+      // Pick the most honest label given which buckets a provider falls into.
+      let priceRange
+      if (g.pricedModels > 0 && minInput > 0 && maxOutput > 0) {
+        priceRange = `$${minInput.toFixed(2)} - $${maxOutput.toFixed(2)}`
+      } else if (g.freeModels === g.models) {
+        priceRange = 'Free'
+      } else if (g.variableModels === g.models) {
+        priceRange = 'Variable (routed)'
+      } else if (g.freeModels + g.variableModels === g.models) {
+        priceRange = 'Free / routed'
+      } else {
+        priceRange = '—'
+      }
+      return {
+        id: g.name.toLowerCase().replace(/\s+/g, '-'),
+        name: g.name,
+        icon: visual.icon,
+        url: visual.url,
+        models: g.models,
+        openModels: g.openModels,
+        freeModels: g.freeModels,
+        priceRange,
+        minInputPrice: minInput,
+        maxOutputPrice: maxOutput,
+        topElo: g.topElo || null,
+        topModelName: g.topModelName,
+      }
+    })
+    .sort((a, b) => (b.topElo || 0) - (a.topElo || 0) || b.models - a.models)
+}

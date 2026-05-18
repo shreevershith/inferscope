@@ -7,7 +7,13 @@ const useDashboardStore = create(
     modelList: [],
     modelsLoading: false,
     modelsLastFetched: null,
-    setModelList: (models) => set({ modelList: models, modelsLastFetched: new Date().toISOString() }),
+    // fetchedAt is the actual upstream fetch time (passed from useModelData).
+    // Falls back to "now" when called without one so the timestamp is never
+    // null after the first store update.
+    setModelList: (models, fetchedAt) => set({
+      modelList: models,
+      modelsLastFetched: fetchedAt || new Date().toISOString(),
+    }),
     setModelsLoading: (loading) => set({ modelsLoading: loading }),
 
     // ── Pricing Slice ──
@@ -17,6 +23,9 @@ const useDashboardStore = create(
     setProviders: (providers) => set({ providers }),
 
     // ── Calculator Slice ──
+    // Pricing fields start at 0 — they only populate once a live model is
+    // selected (from Arena or directly). The UI shows "Select a model" until
+    // then. Tokens/requests are UI defaults, not pricing data.
     calculatorInputs: {
       selectedModelId: null,
       selectedModelName: '',
@@ -24,10 +33,13 @@ const useDashboardStore = create(
       outputTokens: 200,
       requestsPerDay: 1000,
       cachingHitRate: 30,
-      scenario: 'base', // 'low' | 'base' | 'high'
-      inputPricePerMToken: 3.00,
-      outputPricePerMToken: 15.00,
-      cachedInputPrice: 0.30,
+      scenario: 'base', // 'low' | 'base' | 'high' | 'spike'
+      // Per-user multiplier overrides keyed by scenario id. Empty by default;
+      // a value here wins over the SCENARIO_MULTIPLIERS constant.
+      scenarioOverrides: {},
+      inputPricePerMToken: 0,
+      outputPricePerMToken: 0,
+      cachedInputPrice: 0,
     },
     selectedProvider: null,
     setCalculatorInputs: (inputs) => set((state) => ({
@@ -98,19 +110,65 @@ const useDashboardStore = create(
     // ── Advisor Context Aggregator ──
     getAdvisorContext: () => {
       const state = get()
+
+      // Format a single price field, handling routed/free/unknown explicitly
+      // so we never ship "$null" or "$0/$0" to the LLM.
+      const fmtPrice = (v, isVariable) => {
+        if (isVariable) return 'variable'
+        if (v == null) return '—'
+        if (v === 0) return 'free'
+        return `$${v.toFixed(2)}`
+      }
+
+      // Top 10 priced, non-variable models so the LLM gets a clean, scannable
+      // leaderboard rather than 350 lines including routers and free demos.
       const topModels = state.modelList
+        .filter(m => !m.isVariablePrice && Number.isFinite(m.inputPricePerMToken))
         .slice(0, 10)
-        .map(m => `${m.name} (ELO: ${m.arenaElo || 'N/A'}, $${m.inputPricePerMToken}/$${m.outputPricePerMToken} per M tokens)`)
+        .map(m => {
+          const elo = m.arenaElo ? `ELO ${m.arenaElo}` : 'no ELO'
+          const inP = fmtPrice(m.inputPricePerMToken, m.isVariablePrice)
+          const outP = fmtPrice(m.outputPricePerMToken, m.isVariablePrice)
+          const ctx = m.contextLabel || '—'
+          return `${m.name} (${m.provider}, ${elo}, ${inP} in / ${outP} out per M tok, ${ctx} ctx)`
+        })
         .join('\n')
 
       const calc = state.calculatorInputs
-      const calcContext = calc.selectedModelId
-        ? `Selected model: ${calc.selectedModelName}, ${calc.requestsPerDay} req/day, ${calc.inputTokens} input + ${calc.outputTokens} output tokens/req, ${calc.cachingHitRate}% cache hit rate, scenario: ${calc.scenario}`
-        : 'No model selected in calculator'
+      let calcContext
+      let monthlyCostEstimate = null
+      if (calc.selectedModelId) {
+        // Project monthly cost so the LLM can ground recommendations in real numbers.
+        const reqMo = (calc.requestsPerDay || 0) * 30
+        const inMo = reqMo * (calc.inputTokens || 0)
+        const outMo = reqMo * (calc.outputTokens || 0)
+        const cacheRate = (calc.cachingHitRate || 0) / 100
+        const inputCost = (inMo / 1_000_000) * (
+          (calc.inputPricePerMToken || 0) * (1 - cacheRate) +
+          (calc.cachedInputPrice || 0) * cacheRate
+        )
+        const outputCost = (outMo / 1_000_000) * (calc.outputPricePerMToken || 0)
+        const monthly = inputCost + outputCost
+        monthlyCostEstimate = monthly >= 1000
+          ? `$${(monthly / 1000).toFixed(1)}K/mo`
+          : `$${monthly.toFixed(2)}/mo`
+
+        calcContext = [
+          `Selected: ${calc.selectedModelName}`,
+          `Pricing: ${fmtPrice(calc.inputPricePerMToken)} in / ${fmtPrice(calc.outputPricePerMToken)} out per M tokens`,
+          `Volume: ${(calc.requestsPerDay || 0).toLocaleString()} req/day, ${calc.inputTokens || 0} in + ${calc.outputTokens || 0} out tokens/req`,
+          `Cache hit rate: ${calc.cachingHitRate || 0}%`,
+          `Traffic scenario: ${calc.scenario || 'base'}`,
+          `Projected monthly cost: ${monthlyCostEstimate}`,
+        ].join('. ')
+      } else {
+        calcContext = 'No model selected in calculator yet'
+      }
 
       return {
         topModels,
         calculatorContext: calcContext,
+        monthlyCostEstimate,
         selectedProvider: state.selectedProvider?.name || 'None',
         totalModels: state.modelList.length,
       }
