@@ -1,12 +1,29 @@
 import { useState, useMemo } from 'react'
-import { events } from '../../lib/analytics'
+import { events } from '../../lib/telemetry'
 
+// Speed view dropped — no public API exposes per-model tokens/sec consistently.
+// Context window (live from OpenRouter) is more useful and always present.
 const VIEWS = [
-  { id: 'elo', label: 'ELO Ranking', icon: 'leaderboard' },
-  { id: 'price', label: 'Price', icon: 'payments' },
-  { id: 'speed', label: 'Speed', icon: 'speed' },
-  { id: 'value', label: 'Value Score', icon: 'thumb_up' },
+  { id: 'elo',     label: 'ELO Ranking', icon: 'leaderboard' },
+  { id: 'price',   label: 'Price',       icon: 'payments' },
+  { id: 'context', label: 'Context',     icon: 'memory' },
+  { id: 'value',   label: 'Value Score', icon: 'thumb_up' },
 ]
+
+// Shorten a model name for tiny bar labels: drop provider prefix, take first
+// two words, cap length. "Anthropic: Claude Opus 4.7" → "Claude Opus".
+function shortLabel(name) {
+  const stripped = String(name || '').replace(/^[^:]+:\s*/, '').replace(/\s*\([^)]*\)\s*/g, '')
+  const words = stripped.split(/\s+/).filter(Boolean).slice(0, 2)
+  return words.join(' ').slice(0, 9) || '—'
+}
+
+function fmtCtx(n) {
+  if (!Number.isFinite(n) || n <= 0) return '—'
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
+  return n.toString()
+}
 
 export default function ArenaInsight({ models, filteredModels, highlightedModelId, onModelClick }) {
   const [activeView, setActiveView] = useState('elo')
@@ -35,13 +52,13 @@ export default function ArenaInsight({ models, filteredModels, highlightedModelI
           minVal: 0,
           invert: true, // lower is better for price
         }))
-      case 'speed':
-        return [...top6].sort((a, b) => (b.tokensPerSecond || 0) - (a.tokensPerSecond || 0)).map(m => ({
+      case 'context':
+        return [...top6].sort((a, b) => (b.contextWindow || 0) - (a.contextWindow || 0)).map(m => ({
           id: m.id,
           name: m.name,
-          value: m.tokensPerSecond || 0,
-          label: `${m.tokensPerSecond || 0} t/s`,
-          maxVal: Math.max(...top6.map(x => x.tokensPerSecond || 0)),
+          value: m.contextWindow || 0,
+          label: fmtCtx(m.contextWindow),
+          maxVal: Math.max(...top6.map(x => x.contextWindow || 0)),
           minVal: 0,
         }))
       case 'value':
@@ -88,8 +105,8 @@ export default function ArenaInsight({ models, filteredModels, highlightedModelI
         return (<><span className="text-primary font-bold">{top.name}</span> leads with ELO {top.label}. Click any bar to highlight in the table.</>)
       case 'price':
         return (<><span className="text-emerald-400 font-bold">{top.name}</span> is cheapest at {top.label}/M tokens. Green bars = better value.</>)
-      case 'speed':
-        return (<><span className="text-primary font-bold">{top.name}</span> is fastest at {top.label}. Speed varies by provider and load.</>)
+      case 'context':
+        return (<><span className="text-primary font-bold">{top.name}</span> has the largest context at {top.label} tokens.</>)
       case 'value':
         return (<><span className="text-emerald-400 font-bold">{top.name}</span> has best quality-per-dollar (score: {top.label}). Value = quality / price.</>)
       default:
@@ -150,7 +167,7 @@ export default function ArenaInsight({ models, filteredModels, highlightedModelI
             />
             {/* Label below */}
             <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[7px] text-slate-500 font-bold whitespace-nowrap">
-              {item.name.split(' ')[0].slice(0, 6)}
+              {shortLabel(item.name)}
             </div>
           </div>
         ))}

@@ -3,12 +3,14 @@ import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Lege
 
 const COLORS = ['#ffe188', '#4ade80', '#60a5fa']
 
+// Radar metrics — Speed dropped (no live tokens/sec source). Replaced with
+// Output-cost affordability so the radar covers both input and output pricing.
 const METRICS = [
   { key: 'qualityScore', label: 'Quality', max: 100 },
   { key: 'valueScore', label: 'Value', max: 150 },
-  { key: 'speedNorm', label: 'Speed', max: 100 },
   { key: 'contextNorm', label: 'Context', max: 100 },
-  { key: 'priceInv', label: 'Affordability', max: 100 },
+  { key: 'priceInv', label: 'Input Affordability', max: 100 },
+  { key: 'outputPriceInv', label: 'Output Affordability', max: 100 },
 ]
 
 function normalize(value, max) {
@@ -18,20 +20,20 @@ function normalize(value, max) {
 export default function ModelCompareDrawer({ models, onClose, onClearAll }) {
   // Normalize data for radar chart
   const radarData = useMemo(() => {
-    const maxSpeed = Math.max(...models.map(m => m.tokensPerSecond || 0), 1)
     const maxContext = Math.max(...models.map(m => m.contextWindow || 0), 1)
-    const maxPrice = Math.max(...models.map(m => m.inputPricePerMToken || 0), 1)
+    const maxInputPrice = Math.max(...models.map(m => m.inputPricePerMToken || 0), 1)
+    const maxOutputPrice = Math.max(...models.map(m => m.outputPricePerMToken || 0), 1)
 
     return METRICS.map(metric => {
       const point = { metric: metric.label }
       models.forEach((m, i) => {
         let val
         switch (metric.key) {
-          case 'qualityScore': val = m.qualityScore || 50; break
-          case 'valueScore': val = Math.min(100, (m.valueScore || 0) * 0.7); break
-          case 'speedNorm': val = ((m.tokensPerSecond || 0) / maxSpeed) * 100; break
-          case 'contextNorm': val = ((m.contextWindow || 0) / maxContext) * 100; break
-          case 'priceInv': val = (1 - (m.inputPricePerMToken || 0) / maxPrice) * 100; break
+          case 'qualityScore':   val = m.qualityScore || 50; break
+          case 'valueScore':     val = Math.min(100, (m.valueScore || 0) * 0.7); break
+          case 'contextNorm':    val = ((m.contextWindow || 0) / maxContext) * 100; break
+          case 'priceInv':       val = (1 - (m.inputPricePerMToken || 0) / maxInputPrice) * 100; break
+          case 'outputPriceInv': val = (1 - (m.outputPricePerMToken || 0) / maxOutputPrice) * 100; break
           default: val = 0
         }
         point[`model${i}`] = Math.round(val)
@@ -126,25 +128,57 @@ export default function ModelCompareDrawer({ models, onClose, onClearAll }) {
                   { label: 'Arena ELO', key: 'arenaElo', fmt: v => v || '—', best: 'max' },
                   { label: 'Quality', key: 'qualityScore', fmt: v => `${v || 0}/100`, best: 'max' },
                   { label: 'Value Score', key: 'valueScore', fmt: v => v || 0, best: 'max' },
-                  { label: 'Input $/M', key: 'inputPricePerMToken', fmt: v => `$${v?.toFixed(2) || '—'}`, best: 'min' },
-                  { label: 'Output $/M', key: 'outputPricePerMToken', fmt: v => `$${v?.toFixed(2) || '—'}`, best: 'min' },
-                  { label: 'Speed', key: 'tokensPerSecond', fmt: v => v ? `${v} tok/s` : '—', best: 'max' },
+                  { label: 'Input $/M', key: 'inputPricePerMToken', fmt: v => v != null ? `$${v.toFixed(2)}` : '—', best: 'min' },
+                  { label: 'Output $/M', key: 'outputPricePerMToken', fmt: v => v != null ? `$${v.toFixed(2)}` : '—', best: 'min' },
+                  {
+                    label: 'Cost / Quality',
+                    key: '_costPerQuality',
+                    // (input + output) ÷ qualityScore. Lower = more value-per-quality-point.
+                    // A model at $3 in / $15 out with quality 90 → (3+15)/90 = 0.20
+                    fmt: (_, m) => {
+                      const q = m.qualityScore || 0
+                      const inP = m.inputPricePerMToken
+                      const outP = m.outputPricePerMToken
+                      if (!q || inP == null || outP == null) return '—'
+                      const total = inP + outP
+                      if (total <= 0) return 'Free'
+                      return `$${(total / q).toFixed(3)}`
+                    },
+                    best: 'min',
+                  },
                   { label: 'Context', key: 'contextLabel', fmt: v => v || '—' },
                   { label: 'License', key: 'license', fmt: v => v || '—' },
                   { label: 'Modalities', key: 'modalities', fmt: v => v?.join(', ') || '—' },
                 ].map(row => {
-                  const values = models.map(m => m[row.key])
-                  const numValues = values.map(v => typeof v === 'number' ? v : null).filter(Boolean)
-                  const bestVal = row.best === 'max' ? Math.max(...numValues) : row.best === 'min' ? Math.min(...numValues) : null
+                  // Computed-key rows (prefix `_`) don't read from m[key] directly —
+                  // they need the model to derive a value. Extract here so the
+                  // best-pick highlight works for them too.
+                  const valueOf = (m) => {
+                    if (row.key === '_costPerQuality') {
+                      const q = m.qualityScore || 0
+                      const inP = m.inputPricePerMToken
+                      const outP = m.outputPricePerMToken
+                      if (!q || inP == null || outP == null) return null
+                      const total = inP + outP
+                      return total > 0 ? total / q : null
+                    }
+                    const raw = m[row.key]
+                    return typeof raw === 'number' ? raw : null
+                  }
+                  const values = models.map(valueOf)
+                  const numValues = values.filter(v => v != null && Number.isFinite(v))
+                  const bestVal = numValues.length > 0
+                    ? (row.best === 'max' ? Math.max(...numValues) : row.best === 'min' ? Math.min(...numValues) : null)
+                    : null
                   return (
                     <tr key={row.label}>
                       <td className="py-2.5 text-xs text-slate-400 font-medium">{row.label}</td>
                       {models.map((m, i) => {
-                        const val = m[row.key]
-                        const isBest = bestVal !== null && typeof val === 'number' && val === bestVal
+                        const num = values[i]
+                        const isBest = bestVal !== null && num != null && num === bestVal
                         return (
                           <td key={m.id} className={`py-2.5 text-xs font-medium ${isBest ? 'text-emerald-400 font-black' : 'text-slate-200'}`}>
-                            {row.fmt(val)}
+                            {row.fmt(m[row.key], m)}
                             {isBest && <span className="ml-1 text-[8px]">★</span>}
                           </td>
                         )
