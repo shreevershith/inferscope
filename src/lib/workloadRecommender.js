@@ -40,7 +40,7 @@ function formatMonthly(n) {
  *
  * @param {Array}  models       Live model list (from useModelData)
  * @param {Object} workload     { requestsPerDay, inputTokens, outputTokens, cachingHitRate, scenarioMultiplier? }
- * @param {Object} options      { qualityFloor=50, budget=null, limit=3, requireOpen=false, requireContext=null }
+ * @param {Object} options      { qualityFloor=50, budget=null, limit=3, requireOpen=false, requireContext=null, qualityCostWeight=30 }
  * @returns {Array<{ model, monthlyCost, score, reason, tag }>}
  */
 export function recommendForWorkload(models, workload = {}, options = {}) {
@@ -50,6 +50,7 @@ export function recommendForWorkload(models, workload = {}, options = {}) {
     limit = 3,
     requireOpen = false,
     requireContext = null,
+    qualityCostWeight = 30,
   } = options
 
   if (!Array.isArray(models) || models.length === 0) return []
@@ -98,18 +99,21 @@ export function recommendForWorkload(models, workload = {}, options = {}) {
   }
 
   // Composite Pareto-aware score:
-  //   score = arenaScore - 30 * log10(cost + 1)
+  //   score = arenaScore - W * log10(cost + 1)
   //
   // arenaScore = crowd-preference ELO mapped to 0-100 via ((elo-1100)/500)*100.
   // This rewards arena ranking linearly and penalizes log-cost. At equal score
   // the cheaper model wins; at equal cost the higher-ranked model wins.
-  // The 30× coefficient balances the two axes roughly so a $1000/mo model
-  // needs to be ~+90 arena score points to beat a $1/mo model.
+  // W (qualityCostWeight, default 30, range ~10-50) controls the trade-off:
+  //   W=10 → strongly prefer cheapest (cost penalty is mild)
+  //   W=30 → balanced (default)
+  //   W=50 → strongly prefer best arena score (cost penalty is steep)
+  const W = Math.max(10, Math.min(50, qualityCostWeight))
   const ranked = withinBudget
     .map(c => {
       const q = c.model.qualityScore || 50
       const logCost = Math.log10(Math.max(c.monthlyCost, 0.01) + 1)
-      const score = q - 30 * logCost
+      const score = q - W * logCost
       return { ...c, score }
     })
     .sort((a, b) => b.score - a.score)

@@ -186,7 +186,13 @@ export default function InfraExplorer() {
           <h3 className="label-micro flex items-center gap-2">
             Self-Hosted GPU Pricing
             <span className="text-[0.6rem] font-medium text-slate-500 normal-case tracking-normal">
-              {gpus.length > 0 ? `(${gpus.length} live configs)` : '(loading…)'}
+              {gpus.length > 0 ? `(${gpus.length} live configs · Vast.ai)` : '(loading…)'}
+            </span>
+            <span
+              className="text-[0.5rem] text-slate-600 normal-case tracking-normal cursor-help"
+              title="GPU pricing from Vast.ai marketplace only. Lambda Labs and RunPod pricing requires visiting their sites directly."
+            >
+              ⓘ
             </span>
           </h3>
           {compareGpus.length >= 2 && (

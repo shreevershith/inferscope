@@ -584,6 +584,7 @@ export default function CostCalculator() {
               })
               events.modelSelect(m.id, m.name, 'workload_recommendation')
             }}
+            onWeightChange={(w) => setInputs({ qualityCostWeight: w })}
           />
         </div>
       </div>
@@ -595,9 +596,10 @@ export default function CostCalculator() {
 // Workload Recommendations — 3 best models for the current calculator
 // inputs, with reasoning. Lets users click to apply the model directly.
 // ─────────────────────────────────────────────────────────────────────
-function WorkloadRecommendations({ modelList, calculatorInputs, scenarioMultiplier, onPickModel }) {
+function WorkloadRecommendations({ modelList, calculatorInputs, scenarioMultiplier, onPickModel, onWeightChange }) {
   const [budget, setBudget] = useState('')
   const [requireOpen, setRequireOpen] = useState(false)
+  const qualityCostWeight = calculatorInputs.qualityCostWeight ?? 30
 
   const workload = useMemo(() => ({
     requestsPerDay: calculatorInputs.requestsPerDay,
@@ -614,8 +616,9 @@ function WorkloadRecommendations({ modelList, calculatorInputs, scenarioMultipli
       budget: parsedBudget,
       limit: 3,
       requireOpen,
+      qualityCostWeight,
     })
-  }, [modelList, workload, budget, requireOpen])
+  }, [modelList, workload, budget, requireOpen, qualityCostWeight])
 
   if (recommendations.length === 0) {
     return (
@@ -655,9 +658,9 @@ function WorkloadRecommendations({ modelList, calculatorInputs, scenarioMultipli
           <details className="text-[0.55rem] text-slate-500 mt-1">
             <summary className="cursor-pointer hover:text-slate-300 transition-colors">How are these ranked?</summary>
             <p className="mt-1 leading-relaxed">
-              score = arenaScore − 30 × log₁₀(monthlyCost + 1). Arena Score is crowd-preference ELO mapped
-              to 0-100. The log-cost penalty means a $1K/mo model needs ~90 more arena points to beat a $1/mo one.
-              At equal score, cheaper wins; at equal cost, higher-ranked wins.
+              score = arenaScore − {qualityCostWeight} × log₁₀(monthlyCost + 1). Arena Score is crowd-preference ELO mapped
+              to 0-100. The cost weight ({qualityCostWeight}) is adjustable via the slider below. Higher weight = prefer
+              cheapest; lower weight = prefer best arena score.
             </p>
           </details>
         </div>
@@ -683,6 +686,21 @@ function WorkloadRecommendations({ modelList, calculatorInputs, scenarioMultipli
             />
           </div>
         </div>
+      </div>
+      {/* Quality vs Cost preference slider */}
+      <div className="flex items-center gap-3 mb-4 px-1">
+        <span className="text-[0.6rem] text-slate-500 font-medium whitespace-nowrap">Prefer best</span>
+        <input
+          type="range"
+          min="10"
+          max="50"
+          step="5"
+          value={qualityCostWeight}
+          onChange={e => onWeightChange(Number(e.target.value))}
+          className="flex-1 h-1 appearance-none bg-slate-700 rounded-full accent-primary cursor-pointer"
+          title={`Cost weight: ${qualityCostWeight} — higher values penalize cost more`}
+        />
+        <span className="text-[0.6rem] text-slate-500 font-medium whitespace-nowrap">Prefer cheapest</span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {recommendations.map(rec => (

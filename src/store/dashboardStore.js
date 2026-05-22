@@ -37,6 +37,10 @@ const useDashboardStore = create(
       // Per-user multiplier overrides keyed by scenario id. Empty by default;
       // a value here wins over the SCENARIO_MULTIPLIERS constant.
       scenarioOverrides: {},
+      // Controls how aggressively the Pareto ranking penalizes cost vs
+      // rewarding arena score. Lower → prefer cheapest; higher → prefer best.
+      // Default 30 balances so a $1000/mo model needs ~+90 arena score to beat $1/mo.
+      qualityCostWeight: 30,
       inputPricePerMToken: 0,
       outputPricePerMToken: 0,
       cachedInputPrice: 0,

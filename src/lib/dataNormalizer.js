@@ -58,28 +58,34 @@ export function mergeModelData({ arenaModels = [], openRouterModels = [] }) {
         const existing = merged.get(matchKey)
         const incomingElo = arena.arenaElo || 0
         const existingElo = existing.arenaElo || 0
+        // Accumulate arena boards for task-strength inference
+        const existingBoards = existing.arenaBoards || []
+        const incomingBoards = arena.boards || []
+        const mergedBoards = [...new Set([...existingBoards, ...incomingBoards])]
         if (incomingElo > existingElo) {
           merged.set(matchKey, {
             ...existing,
             arenaElo: incomingElo,
+            arenaBoards: mergedBoards,
             voteCount: arena.voteCount || existing.voteCount,
           })
+        } else if (mergedBoards.length > (existingBoards.length || 0)) {
+          merged.set(matchKey, { ...existing, arenaBoards: mergedBoards })
         }
       }
     }
   }
 
-  // Finalize: compute quality, sort, rank
+  // Finalize: re-derive task strengths now that arenaBoards are available,
+  // compute arena score, sort, rank.
   const models = Array.from(merged.values())
     .map((m) => {
-      const strengths = [...(m.taskStrengths || [])]
-      // Frontier-tier general-purpose models (ELO ≥ 1490 ≈ top ~8) are
-      // demonstrably strong at creative writing even though their descriptions
-      // focus on code/reasoning.  Lower-ELO models are excluded so the
-      // Creative scatter chart visibly differs from Chat.
-      if (m.arenaElo >= 1490 && strengths.includes('chat') && !strengths.includes('creative')) {
-        strengths.push('creative')
-      }
+      // Re-run inference with arenaBoards so board-based signals (code board
+      // → code tag, text board → creative) actually fire. The initial call
+      // at OpenRouter parse time ran without boards.
+      const strengths = m.arenaBoards?.length
+        ? inferTaskStrengths(m.name, m.id, m.description, m.arenaBoards)
+        : (m.taskStrengths || ['chat'])
       const { score: qualityScore, basis: arenaScoreBasis } = computeQualityScore(m)
       return {
         ...m,
@@ -126,15 +132,17 @@ function extractProviderFromName(name) {
   return 'Unknown'
 }
 
-// Task-strength tags derived from model name/id + OpenRouter description.
-// Two-tier scan: cheap regex on name/id (catches "*-coder", "*-thinking",
-// etc.), plus weighted keyword counting in the description so a model that
-// explicitly says "optimized for code" gets the code tag even when its name
-// doesn't betray it.
+// Task-strength tags derived from three tiers (strongest signal first):
+//   1. Arena board presence — a model ranked on the "code" board with real ELO
+//      is a much stronger signal than regex on the name.
+//   2. Name/id regex — catches "*-coder", "*-thinking", etc.
+//   3. Description keyword counting — ≥2 keyword hits, with negative-keyword
+//      filtering so "this is not a coding model" doesn't falsely match.
 const TASK_PATTERNS = {
   code: {
     nameRe: /\b(code|coder|coding|codestral|starcoder|devstral|cogito|coder?)\b/i,
     descKeywords: ['code generation', 'coding', 'programming', 'software engineering', 'debugging', 'pull request', 'refactor'],
+    arenaBoard: 'code',
   },
   reasoning: {
     nameRe: /\b(reason|reasoning|thinking|qwq|o1|o3|o4|r1|deepresearch|deepthink)\b/i,
@@ -143,38 +151,60 @@ const TASK_PATTERNS = {
   creative: {
     nameRe: /\b(creative|writer|writing|story|novel|nemo|rocinante|euryale|magnum|mythomax|skyfall|hanami|lumimaid|midnight|rose)\b/i,
     descKeywords: ['creative writing', 'storytelling', 'narrative', 'roleplay', 'role-play', 'fiction', 'prose', 'character', 'writing', 'creative', 'poetry', 'literary', 'content creation', 'imaginative'],
+    arenaBoard: 'text', // text-board presence with competitive ELO → creative-capable
   },
   chat: {
     // Most general-purpose chat-tuned models qualify
     nameRe: /\b(chat|instruct|turbo|sonnet|opus|haiku|gpt|gemini|llama|mistral|qwen|command|kimi|grok|nova|ernie|hermes|glm)\b/i,
     descKeywords: ['conversation', 'chat', 'assistant', 'dialogue', 'general-purpose', 'helpful'],
+    arenaBoard: 'text',
   },
 }
 
-function inferTaskStrengths(name, id, description) {
+// Negative prefixes: if a keyword hit is preceded within 20 chars by one of
+// these, it's a negation ("not optimized for code") and shouldn't count.
+const NEGATIVE_PREFIXES = ['not ', 'no ', 'without ', "doesn't ", "isn't ", 'non-']
+
+function hasNegatedMatch(text, keyword) {
+  const idx = text.indexOf(keyword)
+  if (idx < 0) return false
+  const preceding = text.slice(Math.max(0, idx - 20), idx)
+  return NEGATIVE_PREFIXES.some(neg => preceding.includes(neg))
+}
+
+function inferTaskStrengths(name, id, description, arenaBoards) {
   const nameText = `${name || ''} ${id || ''}`
   const descText = String(description || '').toLowerCase()
+  const boards = arenaBoards || []
   const tags = new Set()
 
-  for (const [tag, { nameRe, descKeywords }] of Object.entries(TASK_PATTERNS)) {
+  for (const [tag, { nameRe, descKeywords, arenaBoard }] of Object.entries(TASK_PATTERNS)) {
+    // Tier 1: Arena board presence (strongest signal)
+    if (arenaBoard && boards.includes(arenaBoard)) {
+      tags.add(tag)
+      continue
+    }
+    // Tier 2: Name/id regex
     if (nameRe.test(nameText)) {
       tags.add(tag)
       continue
     }
-    // Need ≥2 keyword hits in description to claim the tag from desc alone —
-    // avoids false positives like "this is not a coding model" matching once.
+    // Tier 3: Description keywords (≥2 hits, with negative filtering)
     let hits = 0
     for (const kw of descKeywords) {
-      if (descText.includes(kw)) hits += 1
+      if (descText.includes(kw) && !hasNegatedMatch(descText, kw)) hits += 1
       if (hits >= 2) { tags.add(tag); break }
     }
   }
 
   // Reasoning-grade models are usually solid at code too
   if (tags.has('reasoning') && !tags.has('code')) tags.add('code')
-  // Major chat-tuned models are broadly capable at creative writing — a single
-  // hint in the description is enough since the chat name-match already
-  // confirms it's a real general-purpose LLM.
+  // Models on the text Arena board that also have a chat tag are broadly
+  // capable at creative writing — replaces the old magic ELO≥1490 threshold.
+  if (tags.has('chat') && !tags.has('creative') && boards.includes('text')) {
+    tags.add('creative')
+  }
+  // Fallback: major chat-tuned models with a creative hint in description
   if (tags.has('chat') && !tags.has('creative')) {
     const CREATIVE_HINTS = ['writing', 'creative', 'content', 'versatile', 'story', 'general-purpose', 'general purpose', 'multi-purpose']
     if (CREATIVE_HINTS.some(hint => descText.includes(hint))) tags.add('creative')

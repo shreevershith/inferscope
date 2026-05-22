@@ -85,13 +85,22 @@ export async function fetchArenaLeaderboard() {
         // board), fall back to raw score for ranking — better than dropping.
         const z = stddev ? (rawScore - mean) / stddev : 0
         const existing = byName.get(key)
-        if (!existing || z > existing._z) {
-          // Synthetic ELO: ref.mean + z * ref.stddev. Preserves "1500 = great"
-          // intuition even when the source board had a tighter spread.
-          const refStddev = ref?.stddev || stddev || 50
-          const refMean = ref?.mean || mean || 1300
-          const adjustedScore = stddev ? Math.round(refMean + z * refStddev) : rawScore
-          byName.set(key, { ...entry, score: adjustedScore, _z: z, _rawScore: rawScore })
+        // Synthetic ELO: ref.mean + z * ref.stddev. Preserves "1500 = great"
+        // intuition even when the source board had a tighter spread.
+        const refStddev = ref?.stddev || stddev || 50
+        const refMean = ref?.mean || mean || 1300
+        const adjustedScore = stddev ? Math.round(refMean + z * refStddev) : rawScore
+        if (!existing) {
+          byName.set(key, { ...entry, score: adjustedScore, _z: z, _rawScore: rawScore, _boards: [boardName] })
+        } else {
+          // Accumulate every board a model appeared on for task-strength inference
+          if (!existing._boards.includes(boardName)) {
+            existing._boards.push(boardName)
+          }
+          if (z > existing._z) {
+            const boards = existing._boards
+            byName.set(key, { ...entry, score: adjustedScore, _z: z, _rawScore: rawScore, _boards: boards })
+          }
         }
       }
     }
@@ -138,6 +147,7 @@ export function normalizeArenaModel(entry) {
       provider: safeStr(entry.vendor ?? entry.organization ?? '', 50),
       license: safeStr(entry.license ?? '', 30),
       board: safeStr(entry._board ?? '', 20),
+      boards: Array.isArray(entry._boards) ? entry._boards : (entry._board ? [entry._board] : []),
       source: 'arena',
     }
   } catch (err) {
