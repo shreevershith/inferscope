@@ -1,4 +1,5 @@
 import { getProviderVisual } from '../constants/providerMetadata'
+import { ApiClientError } from './ApiClientError'
 
 const OPENROUTER_API = 'https://openrouter.ai/api/v1/models'
 const FETCH_TIMEOUT_MS = 10_000
@@ -10,22 +11,16 @@ export async function fetchOpenRouterModels() {
   try {
     const res = await fetch(OPENROUTER_API, { signal: controller.signal })
     if (!res.ok) {
-      const error = new Error(`OpenRouter API error: ${res.status}`)
-      error.status = res.status
-      error.source = 'openrouter'
-      throw error
+      throw new ApiClientError(`OpenRouter API error: ${res.status}`, { status: res.status, source: 'openrouter' })
     }
     const data = await res.json().catch(() => null)
     if (!data || !Array.isArray(data.data)) {
-      const error = new Error('OpenRouter API returned unexpected payload')
-      error.source = 'openrouter'
-      throw error
+      throw new ApiClientError('OpenRouter API returned unexpected payload', { source: 'openrouter' })
     }
     return data.data
   } catch (err) {
-    // Re-throw with source for upstream classification
-    if (!err.source) err.source = 'openrouter'
-    throw err
+    if (err instanceof ApiClientError) throw err
+    throw new ApiClientError(err.message || 'OpenRouter fetch failed', { source: 'openrouter', cause: err })
   } finally {
     clearTimeout(timeoutId)
   }

@@ -5,6 +5,8 @@
 // LLM chat ranking) and optionally merge `code` + `vision` for broader
 // coverage, taking the max ELO per model across boards.
 
+import { ApiClientError } from './ApiClientError'
+
 const ARENA_BASE = 'https://api.wulong.dev/arena-ai-leaderboards/v1/leaderboard'
 const FETCH_TIMEOUT_MS = 10_000
 // Boards relevant to text-generation LLMs. Image/video boards excluded —
@@ -15,17 +17,11 @@ const BOARDS = ['text', 'code', 'vision', 'document', 'search']
 async function fetchBoard(name, signal) {
   const res = await fetch(`${ARENA_BASE}?name=${encodeURIComponent(name)}`, { signal })
   if (!res.ok) {
-    const error = new Error(`Arena ${name} board error: ${res.status}`)
-    error.status = res.status
-    error.source = 'arena'
-    error.board = name
-    throw error
+    throw new ApiClientError(`Arena ${name} board error: ${res.status}`, { status: res.status, source: 'arena' })
   }
   const data = await res.json().catch(() => null)
   if (!data || !Array.isArray(data.models)) {
-    const error = new Error(`Arena ${name} board returned unexpected payload`)
-    error.source = 'arena'
-    throw error
+    throw new ApiClientError(`Arena ${name} board returned unexpected payload`, { source: 'arena' })
   }
   return data.models.map(m => ({ ...m, _board: name }))
 }

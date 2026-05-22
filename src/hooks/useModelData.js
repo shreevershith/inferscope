@@ -98,6 +98,8 @@ export function useModelData() {
     revalidateOnFocus: false,
     refreshInterval: 60 * 60 * 1000, // 1 hour
     dedupingInterval: 15 * 60 * 1000, // 15 min
+    shouldRetryOnError: true,
+    errorRetryCount: 2,
     fallbackData: fallback,
   })
 

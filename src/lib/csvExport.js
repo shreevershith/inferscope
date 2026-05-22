@@ -6,10 +6,11 @@
 function escapeCell(value) {
   if (value === null || value === undefined) return ''
   const s = typeof value === 'string' ? value : String(value)
-  if (/[",\n\r]/.test(s)) {
-    return `"${s.replace(/"/g, '""')}"`
+  const safe = /^[=+\-@\t\r]/.test(s) ? `\t${s}` : s
+  if (/[",\n\r\t]/.test(safe)) {
+    return `"${safe.replace(/"/g, '""')}"`
   }
-  return s
+  return safe
 }
 
 /**
@@ -43,9 +44,10 @@ export function downloadCSV(csvText, filename) {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    // Defer revoke so the click handler completes first
     setTimeout(() => URL.revokeObjectURL(url), 100)
+    return true
   } catch (err) {
     console.error('CSV download failed:', err)
+    return false
   }
 }

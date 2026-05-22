@@ -3,17 +3,11 @@
 //   - typed errors with `.source` + `.status` so the UI can classify them
 //   - logged JSON-parse failures (no more silently returning {})
 
+import { ApiClientError } from './ApiClientError'
+
 const TIMEOUT_MS = 30_000  // Groq Llama 3.3 70B can take a while on first cold response
 
-class AiClientError extends Error {
-  constructor(message, { status = 0, source = 'ai-chat', cause } = {}) {
-    super(message)
-    this.name = 'AiClientError'
-    this.status = status
-    this.source = source
-    if (cause) this.cause = cause
-  }
-}
+const AiClientError = ApiClientError
 
 export async function sendChatMessage(userMessage, context, provider = 'claude') {
   const controller = new AbortController()

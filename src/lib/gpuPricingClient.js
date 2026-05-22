@@ -1,6 +1,8 @@
 // Fetches live GPU pricing from our serverless proxy (/api/gpu-pricing).
 // The proxy aggregates Vast.ai's public bundles API.
 
+import { ApiClientError } from './ApiClientError'
+
 const FETCH_TIMEOUT_MS = 12_000
 
 export async function fetchGpuPricing() {
@@ -10,16 +12,11 @@ export async function fetchGpuPricing() {
   try {
     const res = await fetch('/api/gpu-pricing', { signal: controller.signal })
     if (!res.ok) {
-      const error = new Error(`GPU pricing API error: ${res.status}`)
-      error.status = res.status
-      error.source = 'gpu-pricing'
-      throw error
+      throw new ApiClientError(`GPU pricing API error: ${res.status}`, { status: res.status, source: 'gpu-pricing' })
     }
     const data = await res.json().catch(() => null)
     if (!data || !Array.isArray(data.gpus)) {
-      const error = new Error('GPU pricing API returned unexpected payload')
-      error.source = 'gpu-pricing'
-      throw error
+      throw new ApiClientError('GPU pricing API returned unexpected payload', { source: 'gpu-pricing' })
     }
     return {
       gpus: data.gpus,
@@ -28,8 +25,8 @@ export async function fetchGpuPricing() {
       totalOffers: data.totalOffers,
     }
   } catch (err) {
-    if (!err.source) err.source = 'gpu-pricing'
-    throw err
+    if (err instanceof ApiClientError) throw err
+    throw new ApiClientError(err.message || 'GPU pricing fetch failed', { source: 'gpu-pricing', cause: err })
   } finally {
     clearTimeout(timeoutId)
   }
