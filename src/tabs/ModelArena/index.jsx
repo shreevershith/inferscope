@@ -7,6 +7,7 @@ import InfoTooltip from '../../components/ui/InfoTooltip'
 import ArenaInsight from './ArenaInsight'
 import ModelCompareDrawer from './ModelCompareDrawer'
 import OptimizationTip from './OptimizationTip'
+import QualityCostScatter from './QualityCostScatter'
 import { fuzzyFilter } from '../../lib/fuzzySearch'
 import { toCSV, downloadCSV } from '../../lib/csvExport'
 import { events } from '../../lib/telemetry'
@@ -49,6 +50,26 @@ function getValueLabel(score) {
   return 'Low'
 }
 
+// Cost of a single API request under a given task profile.
+// Returns null for variable-price or missing-price models.
+function costPerTask(model, profile) {
+  if (model.isVariablePrice) return null
+  const inP = model.inputPricePerMToken
+  const outP = model.outputPricePerMToken
+  if (inP == null && outP == null) return null
+  return ((profile.inputTokens / 1_000_000) * (inP || 0))
+       + ((profile.outputTokens / 1_000_000) * (outP || 0))
+}
+
+function fmtTaskCost(cost) {
+  if (cost == null) return '—'
+  if (cost === 0) return 'Free'
+  if (cost < 0.0001) return `$${cost.toFixed(5)}`
+  if (cost < 0.01) return `$${cost.toFixed(4)}`
+  if (cost < 1) return `$${cost.toFixed(3)}`
+  return `$${cost.toFixed(2)}`
+}
+
 export default function ModelArena() {
   const { models, isLoading, error } = useModelData()
   const applyModelToCalculator = useDashboardStore(s => s.applyModelToCalculator)
@@ -58,6 +79,9 @@ export default function ModelArena() {
   const clearCompareModels = useDashboardStore(s => s.clearCompareModels)
 
   const [activeTask, setActiveTask] = useState('all')
+  // Active task's token profile for the $/Task column
+  const activeProfile = TASK_CATEGORIES.find(c => c.id === activeTask)?.tokenProfile
+    || TASK_CATEGORIES[0].tokenProfile
   const [providerFilter, setProviderFilter] = useState('all')
   const [licenseFilter, setLicenseFilter] = useState('all')
   // Two-stage search: localSearch is the input field (renders every keystroke),
@@ -241,6 +265,15 @@ export default function ModelArena() {
           </div>
         </div>
 
+        {/* Quality vs Cost Scatter — always shows full model landscape;
+            task filter highlights matching dots and recomputes Pareto */}
+        <QualityCostScatter
+          models={modelsWithValue}
+          activeTaskIds={activeTask !== 'all' ? new Set(filteredModels.map(m => m.id)) : null}
+          highlightedModelId={highlightedModelId}
+          onModelClick={(id) => setHighlightedModelId(highlightedModelId === id ? null : id)}
+        />
+
         {/* Table Header */}
         <div className="flex items-center justify-between px-1 gap-3">
           <p className="text-xs text-slate-400">
@@ -260,6 +293,7 @@ export default function ModelArena() {
                   { header: 'Context Tokens', accessor: (m) => m.contextWindow || '' },
                   { header: 'Input $/M', accessor: (m) => m.isVariablePrice ? 'variable' : (m.inputPricePerMToken ?? '') },
                   { header: 'Output $/M', accessor: (m) => m.isVariablePrice ? 'variable' : (m.outputPricePerMToken ?? '') },
+                  { header: `$/Task (${activeProfile.label})`, accessor: (m) => { const c = costPerTask(m, activeProfile); return c == null ? '' : c.toFixed(5) } },
                   { header: 'License', accessor: (m) => m.license || '' },
                   { header: 'Modalities', accessor: (m) => (m.modalities || []).join('|') },
                   { header: 'Task Strengths', accessor: (m) => (m.taskStrengths || []).join('|') },
@@ -304,7 +338,10 @@ export default function ModelArena() {
                   <th data-tour="arena-value-col" className="px-3 py-3 label-micro" title="Value = quality / price. Higher is better bang-for-buck">Value</th>
                   <th className="px-3 py-3 label-micro hidden md:table-cell">Context</th>
                   <th className="px-3 py-3 label-micro">$/M</th>
-                  <th className="px-3 py-3 label-micro hidden md:table-cell">Out $/M</th>
+                  <th className="px-3 py-3 label-micro hidden md:table-cell" title={`Estimated cost per request · ${activeProfile.label}`}>
+                    $/Task
+                    <span className="block text-[0.5rem] text-slate-500 font-medium normal-case tracking-normal">{activeProfile.label}</span>
+                  </th>
                   <th className="px-3 py-3 label-micro text-right">Action</th>
                 </tr>
               </thead>
@@ -375,12 +412,13 @@ export default function ModelArena() {
                       : model.inputPricePerMToken === 0 ? <span className="text-emerald-400">Free</span>
                       : `$${model.inputPricePerMToken.toFixed(2)}`
                     }</td>
-                    <td className="px-3 py-3.5 text-xs text-slate-200 hidden md:table-cell">{
-                      model.isVariablePrice ? <span className="text-slate-500 italic">Variable</span>
-                      : model.outputPricePerMToken == null ? '—'
-                      : model.outputPricePerMToken === 0 ? <span className="text-emerald-400">Free</span>
-                      : `$${model.outputPricePerMToken.toFixed(2)}`
-                    }</td>
+                    <td className="px-3 py-3.5 text-xs font-medium hidden md:table-cell">{(() => {
+                      if (model.isVariablePrice) return <span className="text-slate-500 italic">Variable</span>
+                      const tc = costPerTask(model, activeProfile)
+                      if (tc === null) return '—'
+                      if (tc === 0) return <span className="text-emerald-400">Free</span>
+                      return <span className="text-primary">{fmtTaskCost(tc)}</span>
+                    })()}</td>
                     <td className="px-3 py-3.5 text-right" onClick={e => e.stopPropagation()}>
                       <button
                         onClick={() => handleCalculate(model)}

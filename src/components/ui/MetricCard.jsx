@@ -19,7 +19,7 @@ export default function MetricCard({ label, value, sublabel, icon, accent = fals
 
   const containerClass = hero
     ? 'bg-primary dark:bg-primary p-5 rounded-lg shadow-lg shadow-black/20 relative overflow-hidden'
-    : `dark:bg-dash-card bg-white p-5 rounded-lg shadow-lg dark:shadow-black/20 shadow-slate-200/50 border ${accent ? 'border-primary/30' : 'dark:border-slate-700/30 border-slate-200'} relative`
+    : `dark:bg-dash-card bg-white p-5 rounded-lg shadow-lg dark:shadow-black/20 shadow-slate-200/50 border ${accent ? 'border-primary/30' : 'dark:border-slate-700/30 border-slate-200'} relative ${showTip ? 'z-10' : ''}`
 
   const labelColor = hero ? 'text-on-primary/70' : 'dark:text-slate-400 text-slate-500'
   const valueColor = hero ? 'text-on-primary' : 'dark:text-white text-slate-800'
@@ -77,7 +77,7 @@ export default function MetricCard({ label, value, sublabel, icon, accent = fals
       )}
 
       {showTip && tooltip && (
-        <div className="absolute top-full left-4 right-4 mt-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300 shadow-xl z-50 leading-relaxed">
+        <div className="absolute top-full left-4 right-4 mt-2 dark:bg-slate-900 bg-white dark:border-slate-700 border-slate-200 border rounded-lg px-3 py-2 text-xs dark:text-slate-300 text-slate-600 shadow-xl z-50 leading-relaxed">
           {tooltip}
         </div>
       )}

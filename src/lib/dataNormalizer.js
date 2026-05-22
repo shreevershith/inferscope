@@ -51,8 +51,9 @@ export function mergeModelData({ arenaModels = [], openRouterModels = [] }) {
     // Multiple Arena entries can map to the same OR model (e.g. the
     // "thinking" and base variants of Claude both point at one OR id) —
     // keep the highest ELO so the better score wins.
+    const matchEntries = buildMatchEntries(merged)
     for (const arena of arenaModels) {
-      const matchKey = findMatchKey(merged, arena.name)
+      const matchKey = findMatchKey(matchEntries, arena.name)
       if (matchKey) {
         const existing = merged.get(matchKey)
         const incomingElo = arena.arenaElo || 0
@@ -70,11 +71,22 @@ export function mergeModelData({ arenaModels = [], openRouterModels = [] }) {
 
   // Finalize: compute quality, sort, rank
   const models = Array.from(merged.values())
-    .map((m) => ({
-      ...m,
-      qualityScore: computeQualityScore(m),
-      lastUpdated: today(),
-    }))
+    .map((m) => {
+      const strengths = [...(m.taskStrengths || [])]
+      // Frontier-tier general-purpose models (ELO ≥ 1490 ≈ top ~8) are
+      // demonstrably strong at creative writing even though their descriptions
+      // focus on code/reasoning.  Lower-ELO models are excluded so the
+      // Creative scatter chart visibly differs from Chat.
+      if (m.arenaElo >= 1490 && strengths.includes('chat') && !strengths.includes('creative')) {
+        strengths.push('creative')
+      }
+      return {
+        ...m,
+        taskStrengths: strengths,
+        qualityScore: computeQualityScore(m),
+        lastUpdated: today(),
+      }
+    })
     .sort((a, b) => {
       // ELO first, then by quality, then by price (cheap last as tiebreaker)
       const eloA = a.arenaElo || 0
@@ -127,8 +139,8 @@ const TASK_PATTERNS = {
     descKeywords: ['multi-step reasoning', 'chain of thought', 'reasoning', 'thinking', 'complex problem', 'mathematical', 'analytical', 'step by step'],
   },
   creative: {
-    nameRe: /\b(creative|writer|writing|story|novel|nemo|rocinante|euryale|magnum|mythomax|skyfall|hanami)\b/i,
-    descKeywords: ['creative writing', 'storytelling', 'narrative', 'roleplay', 'role-play', 'fiction', 'prose', 'character'],
+    nameRe: /\b(creative|writer|writing|story|novel|nemo|rocinante|euryale|magnum|mythomax|skyfall|hanami|lumimaid|midnight|rose)\b/i,
+    descKeywords: ['creative writing', 'storytelling', 'narrative', 'roleplay', 'role-play', 'fiction', 'prose', 'character', 'writing', 'creative', 'poetry', 'literary', 'content creation', 'imaginative'],
   },
   chat: {
     // Most general-purpose chat-tuned models qualify
@@ -158,6 +170,13 @@ function inferTaskStrengths(name, id, description) {
 
   // Reasoning-grade models are usually solid at code too
   if (tags.has('reasoning') && !tags.has('code')) tags.add('code')
+  // Major chat-tuned models are broadly capable at creative writing — a single
+  // hint in the description is enough since the chat name-match already
+  // confirms it's a real general-purpose LLM.
+  if (tags.has('chat') && !tags.has('creative')) {
+    const CREATIVE_HINTS = ['writing', 'creative', 'content', 'versatile', 'story', 'general-purpose', 'general purpose', 'multi-purpose']
+    if (CREATIVE_HINTS.some(hint => descText.includes(hint))) tags.add('creative')
+  }
   // Always at least chat — most LLMs handle conversational use
   if (tags.size === 0) tags.add('chat')
   return Array.from(tags)
@@ -174,26 +193,27 @@ function inferTaskStrengths(name, id, description) {
 //   3. Base-model fallback: strip Arena suffix (-thinking, -high, -instant…)
 //      then retry; lets reasoning-variant ELOs flow onto the base model when
 //      no thinking-variant exists in the OR catalog
-function findMatchKey(map, name) {
-  if (!name) return null
-  const stripORDecoration = (s) => String(s || '')
-    .replace(/^[^:]+:\s*/, '')      // "Anthropic: Claude…" → "Claude…"
-    .replace(/\s*\([^)]*\)\s*/g, '') // "Claude Opus 4.7 (Fast)" → "Claude Opus 4.7"
-  const normalize = (s) => String(s || '').toLowerCase().replace(/[-_\s.()/:]/g, '')
+const stripORDecoration = (s) => String(s || '')
+  .replace(/^[^:]+:\s*/, '')      // "Anthropic: Claude…" → "Claude…"
+  .replace(/\s*\([^)]*\)\s*/g, '') // "Claude Opus 4.7 (Fast)" → "Claude Opus 4.7"
+const normalize = (s) => String(s || '').toLowerCase().replace(/[-_\s.()/:]/g, '')
 
-  const arenaNorm = normalize(name)
-  if (!arenaNorm || arenaNorm.length < 3) return null
-
-  // Build normalized entries once
+function buildMatchEntries(map) {
   const entries = []
   for (const [key, value] of map) {
-    const cleanedName = stripORDecoration(value.name)
     entries.push({
       key,
-      nameNorm: normalize(cleanedName),
+      nameNorm: normalize(stripORDecoration(value.name)),
       idNorm: normalize(value.id),
     })
   }
+  return entries
+}
+
+function findMatchKey(entries, name) {
+  if (!name) return null
+  const arenaNorm = normalize(name)
+  if (!arenaNorm || arenaNorm.length < 3) return null
 
   // 1. Exact match
   for (const e of entries) {
@@ -227,7 +247,6 @@ function findMatchKey(map, name) {
     for (const e of entries) {
       if (e.nameNorm === trimmed || e.idNorm === trimmed) return e.key
     }
-    // Also fuzzy on trimmed
     for (const e of entries) {
       if (e.nameNorm.length >= 4 && (e.nameNorm.includes(trimmed) || trimmed.includes(e.nameNorm))) {
         return e.key

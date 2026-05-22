@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import useDashboardStore from '../../store/dashboardStore'
 import { useCostCalculator } from '../../hooks/useCostCalculator'
 import MetricCard from '../../components/ui/MetricCard'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line, CartesianGrid, ReferenceLine } from 'recharts'
 import { SCENARIO_MULTIPLIERS } from '../../constants/taskCategories'
 import { formatRelativeTime } from '../../lib/timeUtils'
 import { suggestDefaults } from '../../lib/smartDefaults'
@@ -18,11 +18,39 @@ const fmt = (n) => {
 
 // Hoisted Recharts constants: prevent re-render churn
 const CHART_TOOLTIP_STYLE = { background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }
-const CHART_TICK_STYLE = { fill: '#94a3b8', fontSize: 10 }
 const formatDollarTick = v => `$${v.toFixed(0)}`
 const formatCompactDollarTick = v => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v.toFixed(0)}`
 const formatBreakdownTooltip = (v, name) => [`$${v.toFixed(2)}`, name]
-const formatVolumeTooltip = (v, _n, entry) => [`$${v.toFixed(2)}`, `Monthly Cost @ ${entry?.payload?.label || '—'}/day`]
+
+/* Custom tooltip for the Cost vs Volume chart.
+   Shows selected model + comparison model costs at each volume point. */
+function VolumeChartTooltip({ active, payload }) {
+  if (!active || !payload?.[0]) return null
+  const d = payload[0].payload
+  return (
+    <div className="px-3 py-2.5 shadow-xl min-w-[160px] dark:bg-slate-800 bg-white dark:border-slate-700 border-slate-200 border rounded-lg text-xs">
+      <p className="dark:text-white text-slate-800 font-bold text-[0.7rem] mb-2">{d.label} req/day</p>
+      <div className="space-y-1.5 text-[0.65rem]">
+        <div className="flex justify-between gap-6">
+          <span className="text-primary font-bold">Selected Model</span>
+          <span className="text-primary font-bold">{fmt(d.monthlyCost)}</span>
+        </div>
+        {d.comp0Name != null && (
+          <div className="flex justify-between gap-4">
+            <span className="text-cyan-600 dark:text-cyan-400 truncate max-w-[110px]" title={d.comp0Name}>{d.comp0Name}</span>
+            <span className="text-cyan-600 dark:text-cyan-400 font-bold">{fmt(d.comp0)}</span>
+          </div>
+        )}
+        {d.comp1Name != null && (
+          <div className="flex justify-between gap-4">
+            <span className="text-violet-600 dark:text-violet-400 truncate max-w-[110px]" title={d.comp1Name}>{d.comp1Name}</span>
+            <span className="text-violet-600 dark:text-violet-400 font-bold">{fmt(d.comp1)}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 // Log-scale x-axis: domain + ticks are derived adaptively from the user's
 // current requestsPerDay (see getAdaptiveVolumeTicks). Each render computes
 // them from the same sweep used to build `volumeCurve` so labels never desync.
@@ -132,6 +160,67 @@ export default function CostCalculator() {
     const max = ticks[ticks.length - 1] * 1.3
     return { ticks, domain: [min, max] }
   }, [volumeCurve])
+
+  // Comparison models for the volume chart: show how the selected model's cost
+  // scales vs alternatives. Picks cheapest-quality and best-quality-cheaper.
+  const comparisonModels = useMemo(() => {
+    if (!modelList?.length || !inputs.selectedModelId) return []
+    const selected = modelList.find(m => m.id === inputs.selectedModelId)
+    if (!selected || !selected.inputPricePerMToken) return []
+    const selectedTotal = (selected.inputPricePerMToken || 0) + (selected.outputPricePerMToken || 0)
+
+    const candidates = modelList.filter(m =>
+      m.id !== selected.id &&
+      !m.isVariablePrice &&
+      m.inputPricePerMToken != null &&
+      m.inputPricePerMToken > 0 &&
+      (m.qualityScore || 0) >= 50
+    )
+    if (candidates.length === 0) return []
+
+    // Cheapest model with quality > 50
+    const cheapest = [...candidates]
+      .sort((a, b) =>
+        (a.inputPricePerMToken + (a.outputPricePerMToken || 0)) -
+        (b.inputPricePerMToken + (b.outputPricePerMToken || 0))
+      )[0]
+
+    // Highest quality model that's cheaper than selected
+    const betterDeal = [...candidates]
+      .filter(m => (m.inputPricePerMToken + (m.outputPricePerMToken || 0)) < selectedTotal)
+      .sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0))[0]
+
+    const result = []
+    if (cheapest) result.push(cheapest)
+    if (betterDeal && betterDeal.id !== cheapest?.id) result.push(betterDeal)
+    return result.slice(0, 2)
+  }, [modelList, inputs.selectedModelId])
+
+  // Cost ratio between comparison models and selected model, used to scale
+  // the base volume curve proportionally for overlay lines.
+  const compRatios = useMemo(() => {
+    const selPerReq = ((inputs.inputTokens || 0) / 1e6) * (inputs.inputPricePerMToken || 0)
+      + ((inputs.outputTokens || 0) / 1e6) * (inputs.outputPricePerMToken || 0)
+    return comparisonModels.map(cm => {
+      const cmPerReq = ((inputs.inputTokens || 0) / 1e6) * (cm.inputPricePerMToken || 0)
+        + ((inputs.outputTokens || 0) / 1e6) * (cm.outputPricePerMToken || 0)
+      return selPerReq > 0 ? cmPerReq / selPerReq : 0
+    })
+  }, [inputs.inputTokens, inputs.outputTokens, inputs.inputPricePerMToken, inputs.outputPricePerMToken, comparisonModels])
+
+  // Volume data with comparison model overlay lines.
+  const volumeBandData = useMemo(() => {
+    if (!volumeCurve?.length) return []
+    return volumeCurve.map(point => {
+      const d = { ...point }
+      // Overlay comparison model costs scaled by ratio
+      comparisonModels.forEach((cm, i) => {
+        d[`comp${i}`] = point.monthlyCost * compRatios[i]
+        d[`comp${i}Name`] = cm.name
+      })
+      return d
+    })
+  }, [volumeCurve, comparisonModels, compRatios])
 
   return (
     <div className="space-y-8">
@@ -351,6 +440,32 @@ export default function CostCalculator() {
             />
           </div>
 
+          {/* Blended cost + token ratio insights */}
+          {costs.monthlyCost > 0 && (
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs dark:bg-slate-800/30 bg-slate-100 rounded-lg px-4 py-2.5">
+              <span className="flex items-center gap-1.5 dark:text-slate-400 text-slate-600">
+                <span className="material-symbols-outlined text-sm text-primary/60">avg_pace</span>
+                Blended
+                <span className="dark:text-white text-slate-900 font-bold">${costs.blendedPerMToken.toFixed(2)}/M tok</span>
+              </span>
+              <span className="flex items-center gap-1.5 dark:text-slate-400 text-slate-600">
+                <span className="material-symbols-outlined text-sm text-primary/60">compare_arrows</span>
+                I/O Ratio
+                <span className="dark:text-white text-slate-900 font-bold">
+                  {inputs.inputTokens}:{inputs.outputTokens}
+                </span>
+              </span>
+              <span className="dark:text-slate-500 text-slate-500 text-[0.65rem] ml-auto">
+                {(() => {
+                  const ratio = (inputs.outputTokens || 0) / Math.max(1, inputs.inputTokens || 1)
+                  if (ratio > 3) return 'Output-heavy — prioritize cheap output pricing'
+                  if (ratio < 0.3) return 'Input-heavy — caching has highest cost impact'
+                  return 'Balanced I/O — caching and output pricing both matter'
+                })()}
+              </span>
+            </div>
+          )}
+
           {/* Charts */}
           <div data-tour="calc-charts" className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Cost Breakdown */}
@@ -361,50 +476,91 @@ export default function CostCalculator() {
               </div>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={breakdownData} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                  <XAxis type="number" tick={CHART_TICK_STYLE} tickFormatter={formatDollarTick} />
+                  <XAxis type="number" tick={{ fontSize: 10 }} className="dark:[&_text]:fill-slate-400 [&_text]:fill-slate-500" tickFormatter={formatDollarTick} />
                   <YAxis type="category" dataKey="name" hide />
-                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={formatBreakdownTooltip} cursor={{ fill: 'rgba(255,225,136,0.05)' }} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={formatBreakdownTooltip} cursor={{ fill: 'rgba(255,225,136,0.08)' }} />
                   <Bar dataKey="inputCost" name="Input Cost" stackId="a" fill="#ffe188" radius={[4, 0, 0, 4]} />
-                  <Bar dataKey="outputCost" name="Output Cost" stackId="a" fill="#efc200" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="outputCost" name="Output Cost" stackId="a" fill="#d4a500" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
               <div className="mt-3 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-3">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[#ffe188]" /><span className="text-slate-400">Input</span></span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[#efc200]" /><span className="text-slate-400">Output</span></span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-[#ffe188]" />
+                    <span className="dark:text-slate-400 text-slate-600">Input{costs.monthlyCost > 0 ? ` (${Math.round(costs.breakdown.inputCost / costs.monthlyCost * 100)}%)` : ''}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-[#d4a500]" />
+                    <span className="dark:text-slate-400 text-slate-600">Output{costs.monthlyCost > 0 ? ` (${Math.round(costs.breakdown.outputCost / costs.monthlyCost * 100)}%)` : ''}</span>
+                  </span>
                 </div>
-                <span className="text-emerald-400 font-medium">{fmt(costs.cacheSavings)} cache savings</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">{fmt(costs.cacheSavings)} saved</span>
               </div>
             </div>
 
-            {/* Cost vs Volume */}
+            {/* Cost vs Volume — selected model + comparison lines */}
             <div className="dash-card p-5">
               <div className="flex items-baseline justify-between mb-4">
                 <h4 className="label-micro">Cost vs Volume</h4>
-                <p className="text-[0.6rem] text-slate-500 uppercase tracking-wider">Log scale · req/day</p>
+                <p className="text-[0.6rem] text-slate-500 uppercase tracking-wider">
+                  Log scale{comparisonModels.length > 0 ? ` · ${comparisonModels.length + 1} models` : ''}
+                </p>
               </div>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={volumeCurve} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <ResponsiveContainer width="100%" height={220}>
+                <ComposedChart data={volumeBandData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="dark:stroke-slate-700 stroke-slate-200" />
                   <XAxis
                     type="number"
                     dataKey="requestsPerDay"
                     scale="log"
                     domain={volumeAxis.domain}
                     ticks={volumeAxis.ticks}
-                    tick={CHART_TICK_STYLE}
+                    tick={{ fontSize: 10 }}
+                    className="dark:[&_text]:fill-slate-400 [&_text]:fill-slate-500"
                     tickFormatter={formatVolumeTick}
                   />
                   <YAxis
-                    tick={CHART_TICK_STYLE}
+                    tick={{ fontSize: 10 }}
+                    className="dark:[&_text]:fill-slate-400 [&_text]:fill-slate-500"
                     tickFormatter={formatCompactDollarTick}
                     domain={[0, 'dataMax']}
                     padding={{ top: 10 }}
                   />
-                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={formatVolumeTooltip} labelFormatter={v => `${formatVolumeTick(v)} req/day`} />
-                  <Line type="monotone" dataKey="monthlyCost" stroke="#ffe188" strokeWidth={2} dot={{ fill: '#ffe188', r: 3 }} />
-                </LineChart>
+                  <Tooltip
+                    content={<VolumeChartTooltip />}
+                    cursor={{ strokeDasharray: '3 3', stroke: '#94a3b8' }}
+                  />
+                  {/* Selected model (solid gold) */}
+                  <Line type="monotone" dataKey="monthlyCost" stroke="#ffe188" strokeWidth={2.5} dot={{ fill: '#ffe188', r: 3, strokeWidth: 0 }} name="Selected" />
+                  {/* Comparison model lines */}
+                  {comparisonModels.length > 0 && (
+                    <Line type="monotone" dataKey="comp0" stroke="#22d3ee" strokeWidth={2} dot={false} name={comparisonModels[0]?.name} />
+                  )}
+                  {comparisonModels.length > 1 && (
+                    <Line type="monotone" dataKey="comp1" stroke="#a78bfa" strokeWidth={2} dot={false} name={comparisonModels[1]?.name} />
+                  )}
+                  {/* Reference line at user's current volume */}
+                  <ReferenceLine x={inputs.requestsPerDay} stroke="#ffe188" strokeDasharray="3 3" strokeOpacity={0.4} />
+                </ComposedChart>
               </ResponsiveContainer>
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                <span className="flex items-center gap-1">
+                  <span className="w-3.5 h-0.5 rounded bg-primary" />
+                  <span className="dark:text-slate-400 text-slate-600">{inputs.selectedModelName || 'Selected'}</span>
+                </span>
+                {comparisonModels[0] && (
+                  <span className="flex items-center gap-1">
+                    <span className="w-3.5 h-0.5 rounded bg-cyan-400" />
+                    <span className="dark:text-slate-400 text-slate-600 truncate max-w-[100px]" title={comparisonModels[0].name}>{comparisonModels[0].name}</span>
+                  </span>
+                )}
+                {comparisonModels[1] && (
+                  <span className="flex items-center gap-1">
+                    <span className="w-3.5 h-0.5 rounded bg-violet-400" />
+                    <span className="dark:text-slate-400 text-slate-600 truncate max-w-[100px]" title={comparisonModels[1].name}>{comparisonModels[1].name}</span>
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -472,10 +628,10 @@ function WorkloadRecommendations({ modelList, calculatorInputs, scenarioMultipli
   const tagStyle = (tag) => {
     switch (tag) {
       case 'best-overall': return 'bg-primary/20 text-primary'
-      case 'cheapest-decent': return 'bg-emerald-500/20 text-emerald-400'
-      case 'runner-up': return 'bg-slate-700 text-slate-300'
-      case 'over-budget': return 'bg-rose-500/20 text-rose-300'
-      default: return 'bg-slate-700/60 text-slate-400'
+      case 'cheapest-decent': return 'bg-emerald-500/20 dark:text-emerald-400 text-emerald-600'
+      case 'runner-up': return 'dark:bg-slate-700 bg-slate-200 dark:text-slate-300 text-slate-600'
+      case 'over-budget': return 'bg-rose-500/20 dark:text-rose-300 text-rose-600'
+      default: return 'dark:bg-slate-700/60 bg-slate-200 dark:text-slate-400 text-slate-600'
     }
   }
   const tagLabel = (tag) => {
@@ -524,7 +680,7 @@ function WorkloadRecommendations({ modelList, calculatorInputs, scenarioMultipli
         {recommendations.map(rec => (
           <div
             key={rec.model.id}
-            className="bg-slate-800/40 border border-slate-700/40 rounded-lg p-4 hover:border-primary/40 transition-all flex flex-col gap-2"
+            className="dark:bg-slate-800/40 bg-white border dark:border-slate-700/40 border-slate-200 rounded-lg p-4 hover:border-primary/40 transition-all flex flex-col gap-2"
           >
             <div className="flex items-center justify-between gap-2">
               <span className={`text-[0.55rem] font-black tracking-wider uppercase px-1.5 py-0.5 rounded ${tagStyle(rec.tag)}`}>

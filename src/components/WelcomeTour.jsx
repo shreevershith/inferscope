@@ -48,6 +48,15 @@ const CHAPTERS = {
       placement: 'bottom',
     },
     {
+      id: 'arena-scatter',
+      selector: '[data-tour="arena-scatter"]',
+      icon: 'scatter_plot',
+      badge: 'PARETO FRONTIER',
+      title: "Quality vs Cost at a glance",
+      body: "Each dot is a model plotted by quality (Y) vs output cost (X, log scale). Green dots are Pareto optimal — no other model beats them on both quality and price. The dashed line connects this efficient frontier. Click any dot to highlight it in the table.",
+      placement: 'top',
+    },
+    {
       id: 'arena-value',
       selector: '[data-tour="arena-value-col"]',
       icon: 'star',
