@@ -3,7 +3,7 @@
 ## 1. Overview & Creative North Star: "The Digital Observatory"
 This design system is engineered to transform dense analytical data into an immersive, high-fidelity environment. Moving away from the "cluttered dashboard" trope, our Creative North Star is **The Digital Observatory**. Imagine a high-end research facility where information isn't just displayed—it's illuminated.
 
-Following a shift to **Dark Mode**, the system now emphasizes depth, contrast, and "vibrant" energetic surfaces rather than flat light. We break the "template" look by eschewing rigid 12-column grids in favor of **intentional asymmetry**. Large-scale data visualizations should breathe, often taking up unconventional percentages of the screen (e.g., a 65/35 split), while typography scales are pushed to extremes—ultra-fine labels contrasted against bold, authoritative display metrics. The goal is a UI that feels like a bespoke tool crafted for an elite operator, emphasizing depth, tonal layering, and "vivid" sophistication.
+Following a shift to **Dark Mode** as the primary theme (with full **Light Mode** support via Tailwind's `dark:` prefix pattern), the system now emphasizes depth, contrast, and "vibrant" energetic surfaces rather than flat light. We break the "template" look by eschewing rigid 12-column grids in favor of **intentional asymmetry**. Large-scale data visualizations should breathe, often taking up unconventional percentages of the screen (e.g., a 65/35 split), while typography scales are pushed to extremes—ultra-fine labels contrasted against bold, authoritative display metrics. The goal is a UI that feels like a bespoke tool crafted for an elite operator, emphasizing depth, tonal layering, and "vivid" sophistication.
 
 ---
 

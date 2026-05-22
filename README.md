@@ -8,7 +8,7 @@ AI Model Intelligence Dashboard — compare LLMs, estimate inference costs, and 
 
 InferScope answers three questions every engineer building with LLMs faces:
 
-1. **"Which model should I use?"** — The Model Arena tab merges live OpenRouter pricing (~350 models) with z-score-normalized Arena ELO scores across 5 leaderboards into a single sortable, filterable, fuzzy-searchable leaderboard. Export to CSV in one click.
+1. **"Which model should I use?"** — The Model Arena tab merges live OpenRouter pricing (~350 models) with z-score-normalized Arena ELO scores across 5 leaderboards into a single sortable, filterable, fuzzy-searchable leaderboard with a dual-layer Quality vs Cost scatter chart and Pareto frontier. Export to CSV in one click.
 
 2. **"What will it cost in production?"** — The Cost Calculator projects monthly/annual costs from your token volumes and traffic profile, then surfaces a Pareto-ranked **Workload Recommendation** panel showing the 3 best-fitting models for your exact configuration. Smart token defaults adapt to the selected model's use case (reasoning, code, chat, creative).
 
@@ -41,11 +41,11 @@ A live leaderboard ranking AI models by quality and cost-effectiveness.
 **Filters:**
 - **Provider** — Filter by model creator (alphabetically sorted, 30+ derived from live data)
 - **License** — Open source vs proprietary
-- **Focus Task** — Code, Reasoning, Chat, Creative. Filtered by `taskStrengths` which is inferred from both name regex AND OpenRouter's `description` field (≥2 keyword hits required)
+- **Focus Task** — Code, Reasoning, Chat, Creative. Filtered by `taskStrengths` which is inferred from both name regex AND OpenRouter's `description` field (≥2 keyword hits required). Frontier models (ELO ≥ 1490) with `chat` strength automatically get `creative` as well. Chat-tagged models with a single creative hint in their description also qualify
 - **Search** — Three-tier fuzzy search: exact > substring > Damerau-Levenshtein (≤2 edits). Searches name + provider + description. Debounced 200ms so 350-model fuzzy doesn't fire per keystroke
 
 **Toolbar:**
-- **EXPORT CSV** — Downloads current filtered set with 12 columns (Rank, Model, Provider, Arena ELO, Quality, Value, Context, Input $/M, Output $/M, License, Modalities, Task Strengths). RFC-4180-compliant escaping, UTF-8 BOM for Excel
+- **EXPORT CSV** — Downloads current filtered set with 12 columns (Rank, Model, Provider, Arena ELO, Quality, Value, Context, Input $/M, Output $/M, License, Modalities, Task Strengths). RFC-4180-compliant escaping, UTF-8 BOM for Excel, formula-injection-safe (cells starting with `=+@-` are tab-prefixed)
 - **COMPARE N MODELS** — Opens slide-up drawer (appears when 2-3 rows checked)
 
 **Sidebar panels:**
@@ -60,6 +60,13 @@ A live leaderboard ranking AI models by quality and cost-effectiveness.
   - **Underrated pick** — non-mainstream provider with ELO ≥ 1400 and price ≤ $3/M
 
 **Model Comparison (≤3 models):** Slide-up drawer with radar chart (Quality, Value, Context, Input Affordability, Output Affordability) and detailed metrics table. New **Cost / Quality** row (lower = better) directly identifies the most cost-efficient pick among compared.
+
+**Quality vs Cost Scatter Chart** — Dual-layer visualization below the leaderboard:
+- **Background layer** (faded): all benchmarked models (those with real Arena ELO + valid pricing) plotted as low-opacity dots, giving a market-wide distribution overview
+- **Foreground layer** (colored): models matching the active Focus Task filter, plotted as bright dots with higher opacity and distinct stroke
+- **Pareto frontier**: models where no other model has both higher quality AND lower cost are highlighted in green with a "★ PARETO OPTIMAL" tooltip badge
+- Axes: X = Output $/M (log-spaced ticks), Y = Quality Score (0-100). Only models with real Arena ELO are shown — imputed quality scores (from price tiers) create misleading horizontal bands
+- Click any dot → selects the model in the leaderboard. Collapsible via chevron toggle
 
 **Cross-tab flow:** Click "CALCULATE" on any row → the model's pricing auto-fills into the Cost Calculator tab.
 
@@ -121,7 +128,7 @@ Cache Savings           = costWithoutCaching - monthlyCost
 
 **Charts:**
 - **Monthly Cost Distribution** — Horizontal stacked bar showing the split between input token cost and output token cost. Cached savings shown as a separate emerald label below the chart (rather than part of the stack, since savings aren't a cost component).
-- **Cost vs Volume** — Line chart plotting monthly cost across 8 log-spaced volumes centered on the user's current `requestsPerDay` (factors 0.01x → 30x). The user's actual input sits roughly mid-curve regardless of scale. Uses a log-scale X-axis so decade spacing stays proportional, avoiding the misleading hockey-stick artifact at linear scale.
+- **Cost vs Volume** — Line chart plotting monthly cost across 8 log-spaced volumes centered on the user's current `requestsPerDay` (factors 0.01x → 30x). Shows the selected model (gold line) plus up to 2 comparison models from Workload Recommendations (cyan + violet lines). The user's actual input sits roughly mid-curve regardless of scale. Uses a log-scale X-axis so decade spacing stays proportional, avoiding the misleading hockey-stick artifact at linear scale. Low/High/Base scenario band lines were removed — they were proportional to the base line and only stretched the Y-axis without adding shape variation.
 
 **Metric cards** include optional trend chips ("Efficient ↑", "30% hit rate ↑") and source tags ("LIVE · OPENROUTER", "12-month projection") to ground each number in its origin.
 
@@ -219,7 +226,7 @@ For comparison questions, the model gives two recommendations (primary + runner-
 
 When no model is selected, falls back to evergreens (`Best model under $500/month?`, `Cheapest model for RAG?`, `When is prompt caching worth setting up?`).
 
-**Error UX** — Network/API failures render as distinct rose-tinted bubbles with an error icon. Errors are classified by `err.source` (typed via `AiClientError`):
+**Error UX** — Network/API failures render as distinct rose-tinted bubbles with an error icon. Errors are classified by `err.source` (typed via `ApiClientError`):
 - `timeout` → *"The AI took too long to respond. Try a shorter question."*
 - `network` → *"Network unavailable. Check your connection and try again."*
 - `rate-limited` → *"AI service is busy. Please wait a moment and retry."*
@@ -349,8 +356,8 @@ Flow 3: Any Tab → AI Advisor
 
 | Source | Cache Duration | Dedup Interval | Rationale |
 |--------|---------------|----------------|-----------|
-| OpenRouter `/api/v1/models` | 1 hour | 15 min | Catalog + pricing — primary model source (~350 models) |
-| Arena leaderboards (text + code + vision + document + search, via wulong.dev) | 1 hour | 15 min | ELO overlay — **z-score-normalized per board** before merging so different-distribution boards compete fairly. Highest z wins per model, mapped back to a synthetic ELO using the text board's mean+stddev |
+| OpenRouter `/api/v1/models` | 1 hour | 15 min | Catalog + pricing — primary model source (~350 models). SWR retries on error (2 attempts) |
+| Arena leaderboards (text + code + vision + document + search, via wulong.dev) | 1 hour | 15 min | ELO overlay — **z-score-normalized per board** before merging so different-distribution boards compete fairly. Highest z wins per model, mapped back to a synthetic ELO using the text board's mean+stddev. SWR retries on error (2 attempts) |
 | Vast.ai GPU bundles (via `/api/gpu-pricing` proxy) | 1 hour edge cache + SWR 1h | 15 min | Live GPU supply + prices, aggregated to p25/median/p75 |
 | localStorage `inferscope-models-cache-v3` | 24h TTL | — | Disk-side hydration of model data — returning visitors see real data on first paint |
 | localStorage `inferscope-gpu-pricing-cache-v1` | 24h TTL | — | Disk-side hydration of GPU pricing |
@@ -428,7 +435,7 @@ Designed in Google Stitch. The "Digital Observatory" aesthetic.
 | Muted text | `slate-400` | Secondary labels, metadata |
 | Error | `#ff7351` | Error states |
 
-**Rules:** No 1px borders (use background color shifts). Glassmorphism for floating elements. Inter font throughout. Dark mode is default. Brand glow animation on logo. Live pulse indicators for data freshness.
+**Rules:** No 1px borders (use background color shifts). Glassmorphism for floating elements. Inter font throughout. Dark mode is default; light mode fully supported with theme-responsive chart axes, grids, tooltips, card surfaces, and recommendation tags (all via `dark:` Tailwind prefix pattern). Brand glow animation on logo. Live pulse indicators for data freshness.
 
 ---
 
@@ -506,8 +513,8 @@ The `api/ai-chat.js` serverless function handles AI requests in production with 
 ```
 inferscope/
 ├── api/
-│   ├── ai-chat.js              # Vercel serverless — Groq proxy. Rate limit, ALLOWED_ORIGIN CORS, prompt-injection sanitization
-│   └── gpu-pricing.js          # Vercel serverless — Vast.ai bundles aggregator (p25/median/p75, 1h edge cache, CORS-gated)
+│   ├── ai-chat.js              # Vercel serverless — Groq proxy. Rate limit, ALLOWED_ORIGIN CORS, OPTIONS preflight, prompt-injection sanitization
+│   └── gpu-pricing.js          # Vercel serverless — Vast.ai bundles aggregator (p25/median/p75, 1h edge cache, CORS-gated, OPTIONS preflight)
 ├── src/
 │   ├── App.jsx                  # 3-tab shell + lazy-loaded tabs + theme toggle + AI Advisor FAB + welcome tour + footer
 │   ├── store/dashboardStore.js  # Zustand (6 slices, cross-tab actions, scenarioOverrides for tunable multipliers)
@@ -521,20 +528,21 @@ inferscope/
 │   │   ├── arenaClient.js           # Arena boards (5) — z-score-normalized merge, throttled warnings
 │   │   ├── gpuPricingClient.js      # Fetch /api/gpu-pricing (live Vast.ai)
 │   │   ├── dataNormalizer.js        # Fuzzy Arena↔OpenRouter merge + computed fields (quality, taskStrengths)
-│   │   ├── aiClient.js              # POST /api/ai-chat. AbortController 30s, typed AiClientError with .source
+│   │   ├── ApiClientError.js         # Shared typed error class (status, source, cause) used by all API wrappers
+│   │   ├── aiClient.js              # POST /api/ai-chat. AbortController 30s, typed ApiClientError with .source
 │   │   ├── advisorPrompts.js        # 7 dynamic suggestion generators for the Advisor panel
 │   │   ├── optimizationTips.js      # 7 dynamic tip generators (cost, caching, open-source, family ladder, …)
 │   │   ├── smartDefaults.js         # Use-case-based token defaults (reasoning/code/creative/chat/RAG)
 │   │   ├── workloadRecommender.js   # Pareto-ranked top-3 models for given workload (in Cost Calculator)
 │   │   ├── fuzzySearch.js           # 3-tier Damerau-Levenshtein search across name/provider/description
-│   │   ├── csvExport.js             # RFC-4180-compliant CSV builder + download trigger
+│   │   ├── csvExport.js             # RFC-4180-compliant CSV builder + download trigger (formula-injection-safe)
 │   │   ├── timeUtils.js             # Relative timestamp formatting (e.g., "2m ago")
 │   │   ├── telemetry.js             # GA4 + custom events (consent-gated). Named to dodge ad-blocker filters
 │   │   └── tourTriggers.js          # Per-chapter localStorage flags + auto-trigger logic
 │   ├── hooks/
 │   │   ├── useModelData.js          # SWR + localStorage cache (v3). Exposes sourceErrors/fromCache/hasPartial/hasTotal
 │   │   ├── useGpuPricing.js         # SWR + localStorage cache (v1). Same error-shape contract as useModelData
-│   │   └── useCostCalculator.js     # useMemo — reactive cost computation
+│   │   └── useCostCalculator.js     # Atomic Zustand selectors + useMemo — reactive cost computation without whole-object subscriptions
 │   ├── components/
 │   │   ├── HeroBanner.jsx           # Live stats banner (models tracked, providers, last refresh)
 │   │   ├── StaleCacheBanner.jsx     # App-level amber banner when both fetches fail + cache is showing
@@ -542,7 +550,7 @@ inferscope/
 │   │   ├── ConsentBanner.jsx        # Cookie consent banner (gates GA loading)
 │   │   ├── Footer.jsx               # Data source attribution (OpenRouter · Arena · Vast.ai · Groq)
 │   │   ├── ui/
-│   │   │   ├── MetricCard.jsx       # KPI card with tooltip, trend chips, source tags
+│   │   │   ├── MetricCard.jsx       # KPI card with tooltip (z-elevated on hover to prevent card overlap), trend chips, source tags
 │   │   │   ├── InfoTooltip.jsx      # Hover/click educational tooltip
 │   │   │   ├── LoadingSpinner.jsx
 │   │   │   ├── SkeletonCard.jsx
@@ -553,6 +561,7 @@ inferscope/
 │       ├── ModelArena/
 │       │   ├── index.jsx                # Leaderboard, filters, fuzzy search, CSV export, Arena Insight sidebar
 │       │   ├── ArenaInsight.jsx         # Interactive bar chart sidebar (4 views)
+│       │   ├── QualityCostScatter.jsx   # Dual-layer scatter chart: task-filtered + all-models + Pareto frontier
 │       │   ├── OptimizationTip.jsx      # Cycling tip card with auto-rotate + manual next
 │       │   └── ModelCompareDrawer.jsx   # Model comparison drawer (radar + table, incl. Cost/Quality)
 │       ├── CostCalculator/index.jsx     # Inputs, smart defaults, scenario editor, charts, WorkloadRecommendations
@@ -579,7 +588,9 @@ inferscope/
 - **CORS hardening** — `ALLOWED_ORIGIN` env var restricts both `/api/ai-chat` and `/api/gpu-pricing` to your production domain.
 - **Generic error messages** — API errors return user-safe messages; internal details (hostnames, stack traces) are logged server-side only, never leaked to clients.
 - **Response validation** — External API responses (OpenRouter, Arena leaderboards, Vast.ai) are shape-checked and timeouts enforced via `AbortController` (10s for upstreams, 30s for Groq via `aiClient`). Malformed individual entries are dropped rather than crashing the whole batch. Normalization warnings are throttled to 3 per session so a schema break doesn't flood the console.
-- **Typed client errors** — `aiClient.js` throws `AiClientError` instances with `.source` (`timeout` / `network` / `rate-limited` / `parse` / `empty` / `server`) so the UI can render targeted messages instead of generic "something failed".
+- **Typed client errors** — All API client wrappers use a shared `ApiClientError` class (`src/lib/ApiClientError.js`) with `.status`, `.source`, and `.cause` properties. Sources: `timeout` / `network` / `rate-limited` / `parse` / `empty` / `server` / `openrouter` / `arena` / `gpu-pricing`. The UI classifies errors by `.source` to render targeted messages instead of generic "something failed".
+- **CSV formula injection** — `csvExport.js` prefixes cells starting with `=`, `+`, `-`, `@`, `\t`, or `\r` with a tab character to prevent formula execution in Excel and Google Sheets.
+- **OPTIONS preflight** — Both serverless endpoints (`api/ai-chat.js`, `api/gpu-pricing.js`) handle CORS preflight requests, returning 204 with appropriate `Access-Control-Allow-Methods` and `Access-Control-Allow-Headers` headers.
 - **NaN firewall** — All numeric calculator inputs are coerced to finite non-negative numbers via `safeNum`. `cachingHitRate` is clamped to [0, 100]. Optimization tips use a `ratio()` helper that returns 0 for non-finite denominators — no NaN can leak to the DOM.
 - **Error boundary** — `ErrorBoundary` wraps every lazy-loaded tab (keyed per tab so a crash clears when the user switches) and the AdvisorPanel. A failed chunk fetch or render bug shows a recovery UI instead of a white screen.
 - **Consent-gated analytics** — Google Analytics script is never injected until the user explicitly accepts the consent banner. No cookies set before consent. Declining preserves zero tracking for the session.
