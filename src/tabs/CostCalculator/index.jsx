@@ -637,7 +637,7 @@ function WorkloadRecommendations({ modelList, calculatorInputs, scenarioMultipli
   const tagLabel = (tag) => {
     switch (tag) {
       case 'best-overall': return 'Best Overall'
-      case 'cheapest-decent': return 'Cheapest Quality'
+      case 'cheapest-decent': return 'Cheapest Decent'
       case 'runner-up': return 'Runner-Up'
       case 'over-budget': return 'Over Budget'
       default: return 'Alternative'
@@ -652,6 +652,14 @@ function WorkloadRecommendations({ modelList, calculatorInputs, scenarioMultipli
           <p className="text-[0.6rem] text-slate-500">
             Pareto-ranked across {modelList.length} live models — your req/day, tokens, cache rate factored in.
           </p>
+          <details className="text-[0.55rem] text-slate-500 mt-1">
+            <summary className="cursor-pointer hover:text-slate-300 transition-colors">How are these ranked?</summary>
+            <p className="mt-1 leading-relaxed">
+              score = arenaScore − 30 × log₁₀(monthlyCost + 1). Arena Score is crowd-preference ELO mapped
+              to 0-100. The log-cost penalty means a $1K/mo model needs ~90 more arena points to beat a $1/mo one.
+              At equal score, cheaper wins; at equal cost, higher-ranked wins.
+            </p>
+          </details>
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-1.5 text-[0.65rem] text-slate-400 font-medium cursor-pointer">
@@ -699,7 +707,7 @@ function WorkloadRecommendations({ modelList, calculatorInputs, scenarioMultipli
               <span className="material-symbols-outlined text-primary/60 text-xs">{rec.model.providerIcon || 'smart_toy'}</span>
               <span>{rec.model.provider}</span>
               <span className="text-slate-600">·</span>
-              <span>Q {rec.model.qualityScore || '—'}</span>
+              <span>Arena {rec.model.qualityScore || '—'}</span>
               {rec.model.arenaElo > 0 && (
                 <>
                   <span className="text-slate-600">·</span>

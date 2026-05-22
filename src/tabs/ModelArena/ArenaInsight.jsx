@@ -108,7 +108,7 @@ export default function ArenaInsight({ models, filteredModels, highlightedModelI
       case 'context':
         return (<><span className="text-primary font-bold">{top.name}</span> has the largest context at {top.label} tokens.</>)
       case 'value':
-        return (<><span className="text-emerald-400 font-bold">{top.name}</span> has best quality-per-dollar (score: {top.label}). Value = quality / price.</>)
+        return (<><span className="text-emerald-400 font-bold">{top.name}</span> has best arena-score-per-dollar (score: {top.label}). Value = arenaScore / log(price).</>)
       default:
         return ''
     }

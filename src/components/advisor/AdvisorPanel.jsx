@@ -174,6 +174,13 @@ export default function AdvisorPanel() {
                   <p className="text-xs dark:text-slate-400 text-slate-500 mt-1 max-w-xs mx-auto">
                     I can see your selected model, traffic, cache hit rate, projected cost, and the live Arena leaderboard. Try a suggested question →
                   </p>
+                  <div className="mt-6 mx-auto max-w-sm dark:bg-slate-800/40 bg-amber-50 border dark:border-slate-700/30 border-amber-200/50 rounded-lg px-4 py-3 text-left">
+                    <p className="text-[0.65rem] dark:text-slate-400 text-slate-500 leading-relaxed">
+                      <span className="material-symbols-outlined text-xs align-middle mr-1 text-amber-500">info</span>
+                      This advisor uses Llama 3.3 70B — a capable but not frontier-tier model. Treat recommendations
+                      as informed starting points based on your dashboard data, not authoritative evaluations.
+                    </p>
+                  </div>
                 </div>
               )}
               {chatMessages.map(msg => (

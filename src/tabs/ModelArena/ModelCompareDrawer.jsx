@@ -6,7 +6,7 @@ const COLORS = ['#ffe188', '#4ade80', '#60a5fa']
 // Radar metrics — Speed dropped (no live tokens/sec source). Replaced with
 // Output-cost affordability so the radar covers both input and output pricing.
 const METRICS = [
-  { key: 'qualityScore', label: 'Quality', max: 100 },
+  { key: 'qualityScore', label: 'Arena Score', max: 100 },
   { key: 'valueScore', label: 'Value', max: 150 },
   { key: 'contextNorm', label: 'Context', max: 100 },
   { key: 'priceInv', label: 'Input Affordability', max: 100 },
@@ -126,12 +126,12 @@ export default function ModelCompareDrawer({ models, onClose, onClearAll }) {
               <tbody className="divide-y divide-slate-700/30">
                 {[
                   { label: 'Arena ELO', key: 'arenaElo', fmt: v => v || '—', best: 'max' },
-                  { label: 'Quality', key: 'qualityScore', fmt: v => `${v || 0}/100`, best: 'max' },
+                  { label: 'Arena Score', key: 'qualityScore', fmt: v => `${v || 0}/100`, best: 'max' },
                   { label: 'Value Score', key: 'valueScore', fmt: v => v || 0, best: 'max' },
                   { label: 'Input $/M', key: 'inputPricePerMToken', fmt: v => v != null ? `$${v.toFixed(2)}` : '—', best: 'min' },
                   { label: 'Output $/M', key: 'outputPricePerMToken', fmt: v => v != null ? `$${v.toFixed(2)}` : '—', best: 'min' },
                   {
-                    label: 'Cost / Quality',
+                    label: 'Cost / Arena Score',
                     key: '_costPerQuality',
                     // (input + output) ÷ qualityScore. Lower = more value-per-quality-point.
                     // A model at $3 in / $15 out with quality 90 → (3+15)/90 = 0.20

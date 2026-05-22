@@ -32,7 +32,7 @@ function ScatterTooltip({ active, payload }) {
       <p className="dark:text-white text-slate-800 font-bold text-[0.7rem]">{d.name}</p>
       <p className="dark:text-slate-500 text-slate-400 text-[0.6rem] mb-1.5">{d.provider}</p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[0.65rem]">
-        <span className="dark:text-slate-400 text-slate-500">Quality</span>
+        <span className="dark:text-slate-400 text-slate-500">Arena Score</span>
         <span className="text-primary font-bold text-right">{d.quality}%</span>
         {d.elo > 0 && <>
           <span className="dark:text-slate-400 text-slate-500">Arena ELO</span>
@@ -133,7 +133,7 @@ export default function QualityCostScatter({ models, activeTaskIds, highlightedM
       >
         <h4 className="label-micro flex items-center gap-1.5">
           <span className="material-symbols-outlined text-primary text-sm">scatter_plot</span>
-          Quality vs Cost
+          Arena Score vs Cost
         </h4>
         <div className="flex items-center gap-2">
           <p className="text-[0.6rem] text-slate-500 uppercase tracking-wider">
@@ -244,7 +244,7 @@ export default function QualityCostScatter({ models, activeTaskIds, highlightedM
             <span className="dark:text-slate-500 text-slate-500">Non-matching ({fadedData.length})</span>
           </span>
         )}
-        <span className="dark:text-slate-600 text-slate-400 text-[0.55rem] ml-auto">Click a dot to highlight in table</span>
+        <span className="dark:text-slate-600 text-slate-400 text-[0.55rem] ml-auto">Only models with Arena ELO shown · Click a dot to highlight in table</span>
       </div>
       </div>}
     </div>

@@ -80,10 +80,12 @@ export function mergeModelData({ arenaModels = [], openRouterModels = [] }) {
       if (m.arenaElo >= 1490 && strengths.includes('chat') && !strengths.includes('creative')) {
         strengths.push('creative')
       }
+      const { score: qualityScore, basis: arenaScoreBasis } = computeQualityScore(m)
       return {
         ...m,
         taskStrengths: strengths,
-        qualityScore: computeQualityScore(m),
+        qualityScore,
+        arenaScoreBasis,
         lastUpdated: today(),
       }
     })
@@ -257,19 +259,22 @@ function findMatchKey(entries, name) {
 }
 
 function computeQualityScore(model) {
-  if (model.qualityScore) return model.qualityScore  // respect explicit value if present
+  if (model.qualityScore) {
+    return { score: model.qualityScore, basis: model.arenaElo ? 'elo' : 'price-proxy' }
+  }
   if (model.arenaElo) {
     // Normalize ELO ~[1100, 1600] → [0, 100]. Widened from /300 to /500 so the
     // 1400-1600 frontier tier doesn't all clamp to 100 — current top models
     // (Opus 4.7 = 1567, Opus 4.6 = 1546, GLM 5.1 = 1532) now produce
     // distinguishable quality bars.
-    return Math.round(Math.min(100, Math.max(0, ((model.arenaElo - 1100) / 500) * 100)))
+    return {
+      score: Math.round(Math.min(100, Math.max(0, ((model.arenaElo - 1100) / 500) * 100))),
+      basis: 'elo',
+    }
   }
-  // No ELO → infer from price tier (higher price = usually higher quality, rough proxy)
+  // No ELO → infer from price tier (higher price = usually higher quality, rough proxy).
+  // These are clearly labeled as estimates in the UI — not real benchmarks.
   const price = model.inputPricePerMToken || 0
-  if (price >= 10) return 85
-  if (price >= 3) return 75
-  if (price >= 1) return 65
-  if (price > 0) return 55
-  return 50
+  const score = price >= 10 ? 85 : price >= 3 ? 75 : price >= 1 ? 65 : price > 0 ? 55 : 50
+  return { score, basis: 'price-proxy' }
 }

@@ -52,8 +52,8 @@ const CHAPTERS = {
       selector: '[data-tour="arena-scatter"]',
       icon: 'scatter_plot',
       badge: 'PARETO FRONTIER',
-      title: "Quality vs Cost at a glance",
-      body: "Each dot is a model plotted by quality (Y) vs output cost (X, log scale). Green dots are Pareto optimal — no other model beats them on both quality and price. The dashed line connects this efficient frontier. Click any dot to highlight it in the table.",
+      title: "Arena Score vs Cost at a glance",
+      body: "Each dot is a model plotted by arena score (Y) vs output cost (X, log scale). Arena score = crowd-preference ELO mapped to 0-100. Green dots are Pareto optimal — no other model beats them on both score and price. Click any dot to highlight it in the table.",
       placement: 'top',
     },
     {
@@ -61,8 +61,8 @@ const CHAPTERS = {
       selector: '[data-tour="arena-value-col"]',
       icon: 'star',
       badge: 'VALUE SCORE',
-      title: "Quality per dollar",
-      body: "Our Value Score is quality ÷ price. Green 'Excellent' = you get a lot of smart answers for very little money.",
+      title: "Arena score per dollar",
+      body: "Value Score = arenaScore / log(price). Green 'Excellent' = high crowd-preference ranking for very little money.",
       placement: 'bottom',
     },
     {
@@ -71,7 +71,7 @@ const CHAPTERS = {
       icon: 'compare',
       badge: 'COMPARE',
       title: "Compare 2-3 models",
-      body: "Tick the checkboxes on any rows to pull up a side-by-side radar chart comparing Quality, Speed, Context, and Affordability.",
+      body: "Tick the checkboxes on any rows to pull up a side-by-side radar chart comparing Arena Score, Value, Context, and Affordability.",
       placement: 'right',
     },
     {
@@ -80,7 +80,7 @@ const CHAPTERS = {
       icon: 'analytics',
       badge: 'INSIGHT',
       title: "The Arena Insight panel",
-      body: "Switch views: ELO ranking, Price, Speed, or Value. Click any bar to highlight that model's row in the table.",
+      body: "Switch views: ELO ranking, Price, Context, or Value. Click any bar to highlight that model's row in the table.",
       placement: 'left',
     },
   ],
@@ -120,7 +120,7 @@ const CHAPTERS = {
       icon: 'dns',
       badge: 'PROVIDERS',
       title: "15 API providers at a glance",
-      body: "Each card shows model count, price range, and speed tier. Click ESTIMATE COST on any provider to pre-fill the Cost Calculator.",
+      body: "Each card shows model count, price range, and top ELO. Click ESTIMATE COST on any provider to pre-fill the Cost Calculator.",
       placement: 'bottom',
     },
     {
@@ -129,7 +129,7 @@ const CHAPTERS = {
       icon: 'memory',
       badge: 'GPU PRICING',
       title: "Self-hosting options",
-      body: "Running your own LLM? Here are H100 / A100 / L40S / RTX 4090 prices across major clouds, with throughput and TFLOPS specs.",
+      body: "Running your own LLM? Here are H100 / A100 / L40S / RTX 4090 prices from live GPU markets, with DL Perf scores and market price ranges.",
       placement: 'top',
     },
     {

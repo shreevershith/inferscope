@@ -196,7 +196,7 @@ export default function ModelArena() {
           </div>
           <div className="bg-dash-card p-5 rounded-lg border-l-4 border-emerald-600/50 flex items-center justify-between shadow-lg shadow-black/20">
             <div>
-              <InfoTooltip text="Best value model: highest quality-to-price ratio. Score = (qualityScore / pricePerMTokens) * 10">
+              <InfoTooltip text="Best value model: highest arena-score-to-price ratio. Formula: arenaScore / log₁₀(price + 1.5) × 10. Models below arena score 50 or with free/variable pricing are excluded.">
                 <p className="label-micro mb-1">Best Value</p>
               </InfoTooltip>
               <h2 className="text-lg font-black text-emerald-400 tracking-tight">
@@ -288,7 +288,7 @@ export default function ModelArena() {
                   { header: 'Model', accessor: (m) => m.name },
                   { header: 'Provider', accessor: (m) => m.provider },
                   { header: 'Arena ELO', accessor: (m) => m.arenaElo || '' },
-                  { header: 'Quality', accessor: (m) => m.qualityScore || '' },
+                  { header: 'Arena Score', accessor: (m) => m.qualityScore || '' },
                   { header: 'Value Score', accessor: (m) => m.valueScore ?? '' },
                   { header: 'Context Tokens', accessor: (m) => m.contextWindow || '' },
                   { header: 'Input $/M', accessor: (m) => m.isVariablePrice ? 'variable' : (m.inputPricePerMToken ?? '') },
@@ -334,8 +334,8 @@ export default function ModelArena() {
                   <th className="px-3 py-3 label-micro">Model Name</th>
                   <th className="px-3 py-3 label-micro">Provider</th>
                   <th className="px-3 py-3 label-micro text-center" title="ELO rating merged across text + code + vision + document + search Arena boards. Highest ELO across boards wins per model.">Arena ELO</th>
-                  <th className="px-3 py-3 label-micro hidden lg:table-cell" title="Normalized quality score (0-100)">Quality</th>
-                  <th data-tour="arena-value-col" className="px-3 py-3 label-micro" title="Value = quality / price. Higher is better bang-for-buck">Value</th>
+                  <th className="px-3 py-3 label-micro hidden lg:table-cell" title="Arena Score: crowd-preference ELO mapped to 0-100. Dashed bars = estimated from price tier (no Arena data).">Arena Score</th>
+                  <th data-tour="arena-value-col" className="px-3 py-3 label-micro" title="Value = arenaScore / log₁₀(price + 1.5) × 10. Higher is better bang-for-buck. Arena score floor: 50.">Value</th>
                   <th className="px-3 py-3 label-micro hidden md:table-cell">Context</th>
                   <th className="px-3 py-3 label-micro">$/M</th>
                   <th className="px-3 py-3 label-micro hidden md:table-cell" title={`Estimated cost per request · ${activeProfile.label}`}>
@@ -395,10 +395,19 @@ export default function ModelArena() {
                       </div>
                     </td>
                     <td className="px-3 py-3.5 text-center font-mono text-primary font-bold text-sm">{model.arenaElo || '—'}</td>
-                    <td className="px-3 py-3.5 hidden lg:table-cell">
+                    <td className="px-3 py-3.5 hidden lg:table-cell" title={model.arenaScoreBasis === 'price-proxy' ? 'Estimated from price tier — no Arena ELO data' : `Arena Score: ${model.qualityScore}`}>
                       <div className="w-20 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${model.qualityScore || 50}%` }} />
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${model.arenaScoreBasis === 'price-proxy' ? 'bg-slate-500/60' : 'bg-primary'}`}
+                          style={{
+                            width: `${model.qualityScore || 50}%`,
+                            ...(model.arenaScoreBasis === 'price-proxy' ? { backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(30,41,59,0.5) 2px, rgba(30,41,59,0.5) 4px)' } : {}),
+                          }}
+                        />
                       </div>
+                      {model.arenaScoreBasis === 'price-proxy' && (
+                        <span className="text-[0.5rem] text-slate-500 italic">est.</span>
+                      )}
                     </td>
                     <td className="px-3 py-3.5">
                       <span className={`text-xs font-black ${getValueColor(model.valueScore)}`} title={`Value score: ${model.valueScore}`}>

@@ -93,17 +93,18 @@ export function recommendForWorkload(models, workload = {}, options = {}) {
         ...c,
         score: 0,
         tag: 'over-budget',
-        reason: `Above your $${budget}/mo budget at ${formatMonthly(c.monthlyCost)} — no candidate fits, this is the cheapest that meets quality ${qualityFloor}+.`,
+        reason: `Above your $${budget}/mo budget at ${formatMonthly(c.monthlyCost)} — no candidate fits, this is the cheapest that meets arena score ${qualityFloor}+.`,
       }))
   }
 
   // Composite Pareto-aware score:
-  //   score = quality - 30 * log10(cost + 1)
+  //   score = arenaScore - 30 * log10(cost + 1)
   //
-  // This rewards quality linearly and penalizes log-cost. At equal quality
-  // the cheaper model wins; at equal cost the higher-quality model wins.
+  // arenaScore = crowd-preference ELO mapped to 0-100 via ((elo-1100)/500)*100.
+  // This rewards arena ranking linearly and penalizes log-cost. At equal score
+  // the cheaper model wins; at equal cost the higher-ranked model wins.
   // The 30× coefficient balances the two axes roughly so a $1000/mo model
-  // needs to be ~+90 quality points to beat a $1/mo model — sensible.
+  // needs to be ~+90 arena score points to beat a $1/mo model.
   const ranked = withinBudget
     .map(c => {
       const q = c.model.qualityScore || 50
@@ -113,10 +114,10 @@ export function recommendForWorkload(models, workload = {}, options = {}) {
     })
     .sort((a, b) => b.score - a.score)
 
-  // Tag top picks: 1st = primary, 2nd = runner-up, 3rd = budget pick (cheapest with high quality)
+  // Tag top picks: 1st = primary, 2nd = runner-up, 3rd = budget pick (cheapest with decent arena score)
   const top = ranked.slice(0, limit)
 
-  // Find the cheapest among the top half that still hits quality≥qualityFloor+20
+  // Find the cheapest among the top half that still hits arenaScore≥qualityFloor+20
   const cheapestQuality = [...withinBudget]
     .filter(c => (c.model.qualityScore || 0) >= qualityFloor + 20)
     .sort((a, b) => a.monthlyCost - b.monthlyCost)[0]
@@ -127,17 +128,17 @@ export function recommendForWorkload(models, workload = {}, options = {}) {
     const cheaper = ranked.find(r => r.monthlyCost < c.monthlyCost && (r.model.qualityScore || 0) >= q * 0.85)
     if (i === 0) {
       tag = 'best-overall'
-      reason = `Best balance: quality ${q} at ${formatMonthly(c.monthlyCost)}.`
+      reason = `Best balance: arena score ${q} at ${formatMonthly(c.monthlyCost)}.`
       if (c.model.arenaElo) reason += ` ELO ${c.model.arenaElo}.`
     } else if (cheapestQuality && c.model.id === cheapestQuality.model.id) {
       tag = 'cheapest-decent'
-      reason = `Cheapest at quality ≥ ${qualityFloor + 20}: ${formatMonthly(c.monthlyCost)}.`
+      reason = `Cheapest at arena score ≥ ${qualityFloor + 20}: ${formatMonthly(c.monthlyCost)}.`
     } else if (i === 1) {
       tag = 'runner-up'
-      reason = `Runner-up: ${formatMonthly(c.monthlyCost)}, quality ${q}.`
+      reason = `Runner-up: ${formatMonthly(c.monthlyCost)}, arena score ${q}.`
     } else {
       tag = 'alternative'
-      reason = `Alternative: ${formatMonthly(c.monthlyCost)}, quality ${q}.`
+      reason = `Alternative: ${formatMonthly(c.monthlyCost)}, arena score ${q}.`
     }
     return { ...c, tag, reason }
   })

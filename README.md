@@ -32,7 +32,7 @@ A live leaderboard ranking AI models by quality and cost-effectiveness.
 | **Model Name** | The model's public identifier | OpenRouter (live, ~350 models) |
 | **Provider** | The company that built/hosts the model | Derived from OpenRouter model ID prefix |
 | **Arena ELO** | Skill rating from human blind A/B comparisons. Merged across text + code + vision + document + search boards (highest ELO wins per model). Higher = better — a 1300 ELO model beats a 1200 ELO model ~64% of the time | arena-ai-leaderboards (wulong.dev API, live) |
-| **Quality** | Normalized 0-100 score derived from Arena ELO: `score = ((elo - 1100) / 500) * 100`, clamped to [0, 100]. Band widened from `/300` so top-tier models (Opus 4.7 = 93, Opus 4.6 = 89, GLM 5.1 = 86) differentiate instead of clamping to 100. Models without ELO fall back to a price-tier heuristic | Computed |
+| **Arena Score** | Crowd-preference ELO mapped to 0-100: `score = ((elo - 1100) / 500) * 100`, clamped to [0, 100]. Band widened from `/300` so top-tier models (Opus 4.7 = 93, Opus 4.6 = 89, GLM 5.1 = 86) differentiate instead of clamping to 100. Models without ELO fall back to a price-tier heuristic, shown with dashed bars and "est." label to indicate the estimate. Internal field name: `qualityScore` + `arenaScoreBasis: 'elo' | 'price-proxy'` | Computed |
 | **Value** | Quality / log(price). Requires `qualityScore ≥ 50` floor to prevent ultra-cheap micro-models from gaming the metric. Excludes free + variable-priced router models | Computed |
 | **Context** | Maximum input token window (128K, 200K, 1M, …). Determines how much text the model can process in a single request | OpenRouter API |
 | **Input $/M** | Cost per 1M input tokens. Renders `Variable` (routed/auto), `Free`, or `$X.XX` | OpenRouter API |
@@ -384,7 +384,8 @@ Each merged model has this shape:
   provider: "Anthropic",                  // canonical (prettified from id slug)
   arenaElo: 1500,                         // z-score-normalized synthetic ELO
   voteCount: 11197,
-  qualityScore: 80,                       // ((elo - 1100) / 500) * 100, clamped
+  qualityScore: 80,                       // ((elo - 1100) / 500) * 100, clamped. User-facing label: "Arena Score"
+  arenaScoreBasis: "elo",                  // "elo" = real Arena data, "price-proxy" = estimated from price tier
   valueScore: 89,                         // quality / log10(price + 1.5) * 10
   inputPricePerMToken: 15.0,              // null for variable-priced routers, 0 for free
   outputPricePerMToken: 75.0,

@@ -52,7 +52,7 @@ function s(text, style) {
 
 // ────────── generators ──────────
 
-// 1. Classic: quality-per-dollar winner vs ELO leader.
+// 1. Classic: arena-score-per-dollar winner vs ELO leader.
 function tipBestValue(models) {
   const top = topByElo(models)
   const best = bestValuePriced(models)
@@ -72,12 +72,12 @@ function tipBestValue(models) {
       s(best.name, 'accent'),
       s(' for '),
       s(`${savings}%`, 'highlight'),
-      s(` cost savings with ${qualityMatch ? 'comparable' : 'some'} quality trade-off.`),
+      s(` cost savings with ${qualityMatch ? 'comparable' : 'some'} arena score trade-off.`),
     ],
   }
 }
 
-// 2. Open-source alternative that reaches a reasonable fraction of top quality.
+// 2. Open-source alternative that reaches a reasonable fraction of top arena score.
 function tipOpenSource(models) {
   const top = topByElo(models.filter(m => m.license === 'proprietary'))
   if (!top) return null
@@ -102,7 +102,7 @@ function tipOpenSource(models) {
       s(`${qPct}%`, 'highlight'),
       s(' of '),
       s(top.name, 'bold'),
-      s("'s quality at "),
+      s("'s arena score at "),
       s(`${savings}%`, 'highlight'),
       s(' less cost.'),
     ],
@@ -179,7 +179,7 @@ function tipFamilyLadder(models, calc) {
       s(selected.name, 'bold'),
       s(' and keeps roughly '),
       s(`${qPct}%`, 'highlight'),
-      s(' of the quality.'),
+      s(' of the arena score.'),
     ],
   }
 }
@@ -265,7 +265,7 @@ function tipOutputHeavy(models, calc) {
   }
 }
 
-// 7. Underrated gem: high-quality model from a non-mainstream provider.
+// 7. Underrated gem: high-arena-score model from a non-mainstream provider.
 function tipUnderrated(models) {
   const MAINSTREAM = new Set(['OpenAI', 'Anthropic', 'Google', 'Meta', 'Microsoft'])
   const candidates = models.filter(m =>

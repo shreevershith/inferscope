@@ -26,7 +26,7 @@ export default function HeroBanner() {
             AI Model Intelligence
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            Real-time benchmarks, pricing, and infrastructure. All in one place, always current.
+            Real-time rankings, pricing, and infrastructure. All in one place, always current.
           </p>
         </div>
 
